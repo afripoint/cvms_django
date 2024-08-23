@@ -9,6 +9,7 @@ from django.contrib.auth.models import (
     BaseUserManager,
     PermissionsMixin,
 )
+import pyotp
 
 
 class MyUserManager(BaseUserManager):
@@ -69,6 +70,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     login_attempts = models.IntegerField(default=0)
     last_login_attempt = models.DateTimeField(null=True, blank=True)
     gender = models.CharField(choices=GENDER_CHOICES_LIST, max_length=15)
+    totp_secret = models.CharField(max_length=32, blank=True, null=True)
+    is_2fa_enabled = models.BooleanField(default=False)
     role = models.CharField(choices=ROLE_CHOICES_LIST, max_length=15)
     slug = models.CharField(max_length=400, blank=True, null=True, unique=True)
     is_staff = models.BooleanField(default=False)
@@ -107,6 +110,17 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         self.login_attempts = 0
         self.last_login_attempt = None
         self.save()
+
+    def generate_totp_secret(self):
+        self.totp_secret = pyotp.random_base32()
+        self.save()
+
+    def verify_totp(self, token):
+        if not self.totp_secret:
+            return False
+        totp = pyotp.TOTP(self.totp_secret)
+        return totp.verify(token)
+
 
     def send_ninety_day_email(self):
         # Logic to send email

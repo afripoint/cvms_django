@@ -75,3 +75,22 @@ class LoginSerializer(serializers.ModelSerializer):
             "email",
             "password",
         )
+
+
+# two factor serializer
+class TwoFASerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=6, min_length=6)
+
+    def validate_token(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("The 2FA token must be a 6-digit number.")
+        return value
+    
+
+class Verify2FASerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=6)
+
+    def validate_token(self, value):
+        if len(value) != 6 or not value.isdigit():
+            raise serializers.ValidationError("Invalid token format")
+        return value
