@@ -1,5 +1,6 @@
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.shortcuts import render
+from rest_framework_simplejwt.authentication import JWTAuthentication
 import pyotp
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,13 +11,12 @@ from accounts.tokens import create_jwt_pair_for_user
 from django.utils import timezone
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.utils.http import urlsafe_base64_decode
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.contrib.auth import authenticate
 from django.urls import reverse
 from datetime import timedelta
 from rest_framework import status
-from django.utils.http import urlsafe_base64_encode
 from django.conf import settings
 from logs.models import Log
 from .serializers import (
@@ -47,19 +47,18 @@ class CreateUserAPIView(APIView):
 
             # Construct activation link
             activation_link = request.build_absolute_uri(
-                reverse("activate-account", kwargs={"uidb64": uid, "token": token})
+                reverse("verify-account", kwargs={"uidb64": uid, "token": token})
             )
 
             # send activation link
             subject = "Activate your account"
             message = f"Please click on the link to change your password from the default one: {activation_link}"
-            recipient_email = serializer.validated_data["email"]
+            recipient_email = serializer.validated_data["email_address"]
             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient_email])
 
             ActivationToken.objects.create(user=user, token=token)
 
             response = {
-                "data": serializer.data,
                 "activation_link": activation_link,
                 "uid": uid,
                 "token": token,
@@ -82,17 +81,22 @@ class VerifyUser(APIView):
             # check if the token has been used
             token_generator = PasswordResetTokenGenerator()
             if not token_generator.check_token(user, token):
-                return HttpResponseRedirect(
-                    "https://cvms-admin.com/change-password?status=invalid"
-                )
-            return HttpResponseRedirect(
-                f"https://cvms-admin.com/change-password?uidb64={uidb64}&token={token}&status=valid"
+                return HttpResponse("Invalid Token")
+                # return HttpResponseRedirect(
+                #     "https://cvms-admin.com/change-password?status=invalid"
+                # )
+            return HttpResponse(
+                "Token Valid and successful, redirecting to the change password page"
             )
+            # return HttpResponseRedirect(
+            #     f"https://cvms-admin.com/change-password?uidb64={uidb64}&token={token}&status=valid"
+            # )
 
         except Exception as e:
-            return HttpResponseRedirect(
-                "https://cvms-admin.com/change-password?status=invalid"
-            )
+            return HttpResponse("Invalid token")
+            # return HttpResponseRedirect(
+            #     "https://cvms-admin.com/change-password?status=invalid"
+            # )
 
 
 class ChangePasswordAPIView(APIView):
@@ -102,12 +106,16 @@ class ChangePasswordAPIView(APIView):
         request_body=ChangeDefaultPassword,
     )
     def patch(self, request):
-        serializer = ChangeDefaultPassword(data=request.POST)
+        data = request.data
+        serializer = ChangeDefaultPassword(data=request.data)
+
+        # import pdb; pdb.set_trace()
         if serializer.is_valid():
-            serializer.save()
+            validated_data = serializer.save()
+
             try:
-                token = serializer.validated_data.get("token")
-                uidb64 = serializer.validated_data.get("uidb64")
+                token = validated_data.get("token")
+                uidb64 = validated_data.get("uidb64")
 
                 uid = urlsafe_base64_decode(uidb64).decode()
                 user = CustomUser.objects.get(pk=uid)
@@ -116,7 +124,10 @@ class ChangePasswordAPIView(APIView):
                 token_generator = PasswordResetTokenGenerator()
 
                 if not token_generator.check_token(user, token):
-                    return Response({"error": "Token has been used"})
+                    return Response(
+                        {"error": "Token has been used"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
                 # Update user's password and save
                 password = serializer.validated_data.get("password")
@@ -126,11 +137,17 @@ class ChangePasswordAPIView(APIView):
                 user.is_active = True
                 user.save()
 
-            except:
                 return Response(
                     {"success": "Password updated successfully"},
                     status=status.HTTP_200_OK,
                 )
+
+            except CustomUser.DoesNotExist:
+                return Response(
+                    {"error": "User not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -148,6 +165,9 @@ class LoginAPIView(APIView):
         # get the email and password
         email_address = serializer.validated_data.get("email_address", "")
         password = serializer.validated_data.get("password", "")
+
+        # Save the email in the session
+        request.session["email_address"] = email_address
 
         try:
             user = CustomUser.objects.get(email_address=email_address, is_verified=True)
@@ -225,8 +245,9 @@ class LoginAPIView(APIView):
         except CustomUser.DoesNotExist:
             Log.objects.create(
                 log_type=Log.LOGIN_ATTEMPT,
+                user=None,
                 message="Unsuccessful login attempt - User does not exist",
-                user=email_address,
+                email=email_address,
                 ip_address=ip_address,
             )
             return Response(
@@ -237,8 +258,6 @@ class LoginAPIView(APIView):
 
 # Two factor verification and login
 class TwoFALoginAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
     @swagger_auto_schema(
         operation_summary="This endpoint is responsible for logging in an admin user using 2FA",
         operation_description="This endpoint logs in an admin using 2FA",
@@ -247,36 +266,30 @@ class TwoFALoginAPIView(APIView):
     def post(self, request):
         serializer = TwoFASerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = request.data
         token = serializer.validated_data.get("token", "")
 
-        try:
-            user = CustomUser.objects.get(
-                email_address=user.email_address, is_verified=True
-            )
+        # Retrieve the email address from the session
+        email_address = request.session.get("email_address", None)
 
-            if user.is_2fa_enabled:
-                # Verify the 2FA token
-                if user.verify_totp(token):
-                    # Generate JWT tokens and return response
-                    tokens = create_jwt_pair_for_user(user)
-                    response = {
-                        "message": "Login Successful",
-                        "token": tokens,
-                        "user": {
-                            "first_name": user.first_name,
-                            "last_name": user.last_name,
-                        },
-                    }
-                    return Response(data=response, status=status.HTTP_200_OK)
-                else:
-                    return Response(
-                        data={"message": "Invalid 2FA token."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+        try:
+            user = CustomUser.objects.get(email_address=email_address, is_verified=True)
+
+            # Verify the 2FA token
+            if user.verify_totp(token) or user.verify_totp(token, tolerance=1):
+                # Generate JWT tokens and return response
+                tokens = create_jwt_pair_for_user(user)
+                response = {
+                    "message": "Login Successful",
+                    "token": tokens,
+                    "user": {
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                    },
+                }
+                return Response(data=response, status=status.HTTP_200_OK)
             else:
                 return Response(
-                    data={"message": "2FA not enabled for this user."},
+                    data={"message": "Invalid 2FA token."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -290,6 +303,7 @@ class TwoFALoginAPIView(APIView):
 # Generate TOTP and anable 2FA
 class Enable2FAAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request):
         user = request.user
@@ -306,6 +320,7 @@ class Enable2FAAPIView(APIView):
 # Create an endpoint to verify the 2FA token during login or sensitive actions
 class Verify2FAAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="This endpoint is responsible for verifying a TOTP secret",
@@ -323,5 +338,4 @@ class Verify2FAAPIView(APIView):
         return Response(data=response, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-# Reset Password 
+# Reset Password

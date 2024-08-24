@@ -10,7 +10,7 @@ from rest_framework import permissions, routers
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="",
+        title="Custom Verification Management System",
         default_version="v1",
         description="",
     ),

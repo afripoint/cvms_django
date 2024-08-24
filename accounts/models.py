@@ -148,4 +148,4 @@ class ActivationToken(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.email} used the token"
+        return f"{self.user.email_address} used the token"

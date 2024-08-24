@@ -20,6 +20,7 @@ class Log(models.Model):
     user = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True
     )
+    email = models.CharField(max_length=20, null=True, blank=True)
     log_type = models.CharField(max_length=20, choices=LOG_TYPE_CHOICES)
     message = models.TextField()
     timestamp = models.DateTimeField(default=timezone.now)
