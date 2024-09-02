@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "drf_yasg",
     "accounts",
     "logs",
+    "departments",
 ]
 
 MIDDLEWARE = [

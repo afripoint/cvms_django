@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from accounts.models import CustomUser
 from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
 import re
 
 
@@ -84,12 +85,54 @@ class ChangeDefaultPassword(serializers.ModelSerializer):
         if password != confirm_password:
             raise ValidationError("Password do not match")
         return attrs
-    
 
     def save(self):
         # The save method will just return the validated data
         return self.validated_data
 
+class ResetPasswordSerializer(serializers.ModelSerializer):
+    old_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, min_length=8, write_only=True)
+    confirm_new_password = serializers.CharField(required=True, min_length=8, write_only=True)
+    class Meta:
+        model = CustomUser
+        fields = ('old_password', 'new_password', 'confirm_new_password')
+
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+
+        if not user.check_password(value):
+            raise serializers.ValidationError(
+                "Your old password is incorrect."
+            )
+        return value
+    
+    def validate_new_password(self, value):
+        if not re.search(r"[A-Z]", value):
+            raise serializers.ValidationError(
+                "Password must contain at least one uppercase letter."
+            )
+        if not re.search(r"[0-9]", value):
+            raise serializers.ValidationError("Password must contain at least one digit.")
+        if not re.search(r"[!@#$%^&*()\-_=+{};:,<.>]", value):
+            raise serializers.ValidationError(
+                "Password must contain at least one special character."
+            )
+        return value
+    
+    def validate(self, attrs):
+        new_password = attrs.get("new_password", "").strip()
+        confirm_new_password = attrs.get("confirm_new_password", "").strip()
+
+        if new_password != confirm_new_password:
+            raise serializers.ValidationError("Password do not match")
+        return attrs
+
+    def save(self):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user
 
 # Login serializer
 class LoginSerializer(serializers.ModelSerializer):
@@ -120,3 +163,27 @@ class Verify2FASerializer(serializers.Serializer):
         if len(value) != 6 or not value.isdigit():
             raise serializers.ValidationError("Invalid token format")
         return value
+
+
+class ForgetPasswordEmailRequestSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(min_length=8)
+
+    class Meta:
+        model = CustomUser
+        fields = ("email",)
+
+
+class DeactivateAdminUserSerializer(serializers.ModelSerializer):
+    is_active = serializers.BooleanField()
+
+    class Meta:
+       model = CustomUser
+       fields = ("is_active",)
+    
+    def validate_is_active(self, value):
+        if value:
+            raise ValidationError('User is successfully deactivated')
+        else:
+            raise ValidationError("Deactivation successfully")
+
+

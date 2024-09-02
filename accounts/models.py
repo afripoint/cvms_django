@@ -1,3 +1,4 @@
+from typing import Iterable
 from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
@@ -10,6 +11,8 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 import pyotp
+
+from departments.models import Command, Department, Rank
 
 
 class MyUserManager(BaseUserManager):
@@ -67,6 +70,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     email_address = models.EmailField(max_length=254, unique=True)
+    staff_id = models.CharField(max_length=50)
     login_attempts = models.IntegerField(default=0)
     last_login_attempt = models.DateTimeField(null=True, blank=True)
     gender = models.CharField(choices=GENDER_CHOICES_LIST, max_length=15)
@@ -149,3 +153,24 @@ class ActivationToken(models.Model):
 
     def __str__(self):
         return f"{self.user.email_address} used the token"
+
+
+
+class support_level1_profile(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    rank = models.ForeignKey(Rank, on_delete=models.CASCADE)
+    command = models.ForeignKey(Command, on_delete=models.CASCADE)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE)
+    slug = models.CharField(max_length=300, unique=True, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = str(uuid.uuid4())
+        super().save(*args, **kwargs)
+
+
+    def __str__(self):
+        return f"{self.user.first_name} {self.user.last_name}"
+    

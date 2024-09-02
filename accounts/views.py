@@ -1,7 +1,9 @@
 from django.http import HttpResponseRedirect, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import pyotp
+from django.utils.encoding import DjangoUnicodeDecodeError
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.core.mail import send_mail
@@ -22,7 +24,10 @@ from logs.models import Log
 from .serializers import (
     ChangeDefaultPassword,
     CustomUserSerializer,
+    DeactivateAdminUserSerializer,
+    ForgetPasswordEmailRequestSerializer,
     LoginSerializer,
+    ResetPasswordSerializer,
     TwoFASerializer,
     Verify2FASerializer,
 )
@@ -338,4 +343,190 @@ class Verify2FAAPIView(APIView):
         return Response(data=response, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Reset Password
+# forget Password
+class ForgetPasswordAPIView(APIView):
+    @swagger_auto_schema(
+        operation_summary="This endpoint is responsible for resetting a user's password.",
+        operation_description="This endpoint resets a user's password.",
+        request_body=ForgetPasswordEmailRequestSerializer,
+    )
+    def post(self, request):
+        serializer = ForgetPasswordEmailRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data["email"]
+            try:
+                user = CustomUser.objects.get(email=email)
+            except ObjectDoesNotExist:
+                response = {
+                    "message": "User with this email does not exist.",
+                }
+                return Response(data=response, status=status.HTTP_404_NOT_FOUND)
+
+            # Generate activation token
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token_generator = PasswordResetTokenGenerator()
+            token = token_generator.make_token(user)
+
+            # Construct activation link
+            activation_link = request.build_absolute_uri(
+                reverse(
+                    "reset-password-token-check",
+                    kwargs={"uidb64": uid, "token": token},
+                )
+            )
+            # Send reset password email
+            subject = "Reset Your Pasword"
+            message = f"Please click the following link to reset your password: {activation_link}"
+            recipient_email = email
+            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient_email])
+
+            response = {
+                "uidb64": uid,
+                "token": token,
+            }
+
+            # response = {
+            #     "activation_link": f"Activation link {activation_link} sent successfully",
+            # }
+            return Response(data=response, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordTokenCheck(APIView):
+    def get(self, request, uidb64, token):
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = CustomUser.objects.get(pk=uid)
+
+            # check if the token has been used
+            token_generator = PasswordResetTokenGenerator()
+            if not token_generator.check_token(user, token):
+                # Redirect to the frontend URL with an invalid token status
+                # return Response({"error": "Token has been used"})
+                return HttpResponseRedirect(
+                    "https://parts-demo.vercel.app/new-password?status=invalid"
+                )
+            # return Response(
+            #     {
+            #         "success": True,
+            #         "messge": "Credentials valid",
+            #         "uidb64": uidb64,
+            #         "token": token,
+            #     },
+            #     status=status.HTTP_200_OK,
+            # )
+
+            return HttpResponse(
+                "Token Valid and successful, redirecting to the change password page"
+            )
+            # return HttpResponseRedirect(
+            #     f"https://parts-demo.vercel.app/new-password?uidb64={uidb64}&token={token}&status=valid"
+            # )
+
+        # except DjangoUnicodeDecodeError as e:
+        #     return Response({"error": "Tokeen is not valid, please request a new one"})
+        except DjangoUnicodeDecodeError as e:
+            # Redirect to the frontend URL with an invalid token status
+            return HttpResponse(
+                "Token invalid, please cheeck tokeen; redirect to login screen"
+            )
+            # return HttpResponseRedirect(
+            #     "https://parts-demo.vercel.app/new-password?status=invalid"
+            # )
+
+
+class SetNewPasswordAPIView(APIView):
+    @swagger_auto_schema(
+        operation_summary="This is responsible for setting new password",
+        operation_description="This endpoint setting new password.",
+        request_body=ChangeDefaultPassword,
+    )
+    def patch(self, request):
+        serializer = ChangeDefaultPassword(data=request.POST)
+        if serializer.is_valid():
+            serializer.save()
+            try:
+                token = serializer.validated_data.get("token")
+                uidb64 = serializer.validated_data.get("uidb64")
+
+                uid = urlsafe_base64_decode(uidb64).decode()
+                user = CustomUser.objects.get(pk=uid)
+
+                # check if the token has been used
+                token_generator = PasswordResetTokenGenerator()
+                if not token_generator.check_token(user, token):
+                    return Response({"error": "Token has been used"})
+
+                # Update user's password
+                password = serializer.validated_data.get("password")
+                user.set_password(password)
+                user.save()
+            except:
+                return Response(
+                    {"success": "Password updated successfully"},
+                    status=status.HTTP_200_OK,
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Reset password feature
+class ResetPasswordAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    @swagger_auto_schema(
+        operation_summary="This endpoint is responsible for resetting the user password",
+        operation_description="Resets the users password - must be an authenticated user",
+        request_body=ResetPasswordSerializer,
+    )
+    def patch(self, request):
+        user = request.user
+        serializer = ResetPasswordSerializer(
+            data=request.data, context={"request": request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            response = {"success": "Password updated successfully"}
+            return Response(data=response, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Logout APIView
+class LogoutAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="This endpoint is responsible for logging tthe user out of the application",
+        operation_description="Logs out the user from the application by deleting their JWT tokens.",
+    )
+    def post(self, request):
+        user = request.user
+        user.create_jwt_pair_for_user(user).delete()
+        return Response(
+            data={"message": "You have been logged out"}, status=status.HTTP_200_OK
+        )
+
+
+# deactivating a user
+class DeactivateUerPAIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    @swagger_auto_schema(
+        operation_summary="This endpoint deactivates an admin user",
+        operation_description="Deactivate an admin user from the application.",
+    )
+    def patch(self, request, slug):
+        user = get_object_or_404(CustomUser, slug=slug)
+        serializer = DeactivateAdminUserSerializer(
+            user, data=request.data, partial=True
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+
+            # call the deactivation logs here
+
+            return Response({"success": True}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
