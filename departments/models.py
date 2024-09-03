@@ -12,7 +12,7 @@ class Command(models.Model):
     class Meta:
         verbose_name = "command"
         verbose_name_plural = "commands"
-        ordering = ["-commands"]
+        ordering = ["-command_name"]
 
 
 
@@ -28,7 +28,7 @@ class Department(models.Model):
     class Meta:
         verbose_name = "department"
         verbose_name_plural = "departments"
-        ordering = ["-department"]
+        ordering = ["-department_name"]
 
 
 
@@ -44,7 +44,7 @@ class Rank(models.Model):
     class Meta:
         verbose_name = "rank"
         verbose_name_plural = "ranks"
-        ordering = ["-rank"]
+        ordering = ["-rank_level"]
 
 class Zone(models.Model):
     zone = models.CharField(max_length=50)

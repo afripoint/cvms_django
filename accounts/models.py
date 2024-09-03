@@ -1,4 +1,6 @@
 from typing import Iterable
+import secrets
+import string
 from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
@@ -13,6 +15,7 @@ from django.contrib.auth.models import (
 import pyotp
 
 from departments.models import Command, Department, Rank
+from roles.models import Role
 
 
 class MyUserManager(BaseUserManager):
@@ -56,27 +59,27 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         ("male", "male"),
         ("female", "female"),
     )
-    ROLE_CHOICES_LIST = (
-        ("support_level1", "support_level1"),
-        ("support_level2", "support_level2"),
-        ("support_level3", "support_level3"),
-        ("accountant1", "accountant1"),
-        ("accountant2", "accountant2"),
-        ("accountant3", "accountant3"),
-        ("compliance", "compliance"),
-        ("content_creator", "content_creator"),
-    )
+    # ROLE_CHOICES_LIST = (
+    #     ("support_level1", "support_level1"),
+    #     ("support_level2", "support_level2"),
+    #     ("support_level3", "support_level3"),
+    #     ("accountant1", "accountant1"),
+    #     ("accountant2", "accountant2"),
+    #     ("accountant3", "accountant3"),
+    #     ("compliance", "compliance"),
+    #     ("content_creator", "content_creator"),
+    # )
     phone_number = models.CharField(max_length=15, unique=True)
     first_name = models.CharField(max_length=255)
+    default_password = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=255)
     email_address = models.EmailField(max_length=254, unique=True)
-    staff_id = models.CharField(max_length=50)
     login_attempts = models.IntegerField(default=0)
     last_login_attempt = models.DateTimeField(null=True, blank=True)
     gender = models.CharField(choices=GENDER_CHOICES_LIST, max_length=15)
     totp_secret = models.CharField(max_length=32, blank=True, null=True)
     is_2fa_enabled = models.BooleanField(default=False)
-    role = models.CharField(choices=ROLE_CHOICES_LIST, max_length=15)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True)
     slug = models.CharField(max_length=400, blank=True, null=True, unique=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
@@ -125,7 +128,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         totp = pyotp.TOTP(self.totp_secret)
         return totp.verify(token)
 
+    # Generate a secure random password
+    @staticmethod
+    def generate_default_password(length=12):
+        # Generate a secure random password
+        characters = string.ascii_letters + string.digits + string.punctuation
+        return "".join(secrets.choice(characters) for _ in range(length))
 
+    # send ninty days email
     def send_ninety_day_email(self):
         # Logic to send email
         pass
@@ -134,9 +144,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         if not self.slug:
             self.slug = slugify(self.phone_number) + str(uuid.uuid4())
 
+        # Generate a default password if not already set
+        if not self.default_password:
+            self.default_password = self.generate_default_password()
+            
+
         if self.created_at and (timezone.now() - self.created_at) >= timedelta(days=90):
             # send an email to the user
-            CustomUser.send_ninety_day_email()
+            self.send_ninety_day_email()
             pass
         super().save(*args, **kwargs)
 
@@ -155,10 +170,12 @@ class ActivationToken(models.Model):
         return f"{self.user.email_address} used the token"
 
 
-
 class support_level1_profile(models.Model):
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE
+    )
     rank = models.ForeignKey(Rank, on_delete=models.CASCADE)
+    staff_id = models.CharField(max_length=50)
     command = models.ForeignKey(Command, on_delete=models.CASCADE)
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
     slug = models.CharField(max_length=300, unique=True, blank=True, null=True)
@@ -170,7 +187,5 @@ class support_level1_profile(models.Model):
             self.slug = str(uuid.uuid4())
         super().save(*args, **kwargs)
 
-
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}"
-    

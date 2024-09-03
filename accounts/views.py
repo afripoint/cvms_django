@@ -6,7 +6,7 @@ from django.utils.encoding import DjangoUnicodeDecodeError
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.core.mail import send_mail
+from django.core.mail import send_mail, mail_admins
 from drf_yasg.utils import swagger_auto_schema
 from django.contrib.auth.hashers import check_password
 from accounts.tokens import create_jwt_pair_for_user
@@ -20,29 +20,122 @@ from django.urls import reverse
 from datetime import timedelta
 from rest_framework import status
 from django.conf import settings
+from accounts.utils import send_admin_email, send_user_email
 from logs.models import Log
 from .serializers import (
     ChangeDefaultPassword,
     CustomUserSerializer,
+    CustomUsersSerializer,
     DeactivateAdminUserSerializer,
     ForgetPasswordEmailRequestSerializer,
+    GrantAccessSerializer,
     LoginSerializer,
     ResetPasswordSerializer,
     TwoFASerializer,
+    UserCreationRequestSerializer,
     Verify2FASerializer,
 )
 from .models import ActivationToken, CustomUser
 from rest_framework.permissions import IsAuthenticated
 
 
-class CreateUserAPIView(APIView):
+# class CreateUserAPIView(APIView):
+#     @swagger_auto_schema(
+#         operation_summary="This is responsible for creating a sub-admin",
+#         operation_description="This endpoint creates sub-admin",
+#         request_body=CustomUserSerializer,
+#     )
+#     def post(self, request, *args, **kwargs):
+#         serializer = CustomUserSerializer(data=request.data)
+#         if serializer.is_valid():
+#             user = serializer.save()
+
+#             # Generate activation token
+#             uid = urlsafe_base64_encode(force_bytes(user.pk))
+#             token = default_token_generator.make_token(user)
+
+#             # Construct activation link
+#             activation_link = request.build_absolute_uri(
+#                 reverse("verify-account", kwargs={"uidb64": uid, "token": token})
+#             )
+
+#             # send activation link
+#             subject = "Activate your account"
+#             message = f"Please click on the link to change your password from the default one: {activation_link}"
+#             recipient_email = serializer.validated_data["email_address"]
+#             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient_email])
+
+#             ActivationToken.objects.create(user=user, token=token)
+
+#             response = {
+#                 "activation_link": activation_link,
+#                 "uid": uid,
+#                 "token": token,
+#             }
+
+#             return Response(data=response, status=status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserCreationRequestAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This is responsible for creating a sub-admin",
-        operation_description="This endpoint creates sub-admin",
-        request_body=CustomUserSerializer,
+        operation_summary="This endpoint allows a user to request access to the admin - user creation account",
+        operation_description="Allow user have access to the admin user creation request",
+        request_body=UserCreationRequestSerializer,
     )
-    def post(self, request, *args, **kwargs):
-        serializer = CustomUserSerializer(data=request.data)
+    def post(self, request):
+        serializer = UserCreationRequestSerializer(data=request.data)
+       
+
+        if serializer.is_valid():
+            user = serializer.save()
+
+            # Get user details for email notification
+            first_name = serializer.validated_data["first_name"]
+            last_name = serializer.validated_data["last_name"]
+
+            # Email content
+            subject = "Access request"
+            message_admin = f"A CVMS user - {first_name} {last_name} is requesting access to the dashboard. Kindly login to the dashboard and grant access"
+            message_user = "You have requested access to the CVMS admin dashboard. You will be notified when granted access."
+
+            recipient_email = serializer.validated_data["email_address"]
+
+            try:
+                # Send email to the admin
+                send_admin_email(subject=subject, message=message_admin)
+
+                # Send email to the user
+                send_user_email(
+                    subject=subject,
+                    message=message_user,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[recipient_email],
+                )
+
+                return Response(
+                    {"message": "Request for access sent"},
+                    status=status.HTTP_200_OK,
+                )
+            except Exception as e:
+                # Handle email sending error
+                return Response(
+                    {"error": "Failed to send email notifications", "details": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GrantAccessAPIView(APIView):
+    @swagger_auto_schema(
+        operation_summary="This endpoint verify users - admin",
+        operation_description="Verify and grant access to users - admin",
+        request_body=GrantAccessSerializer,
+    )
+    def post(self, request, slug):
+        # get the user to verify
+        user = get_object_or_404(CustomUser, slug=slug)
+        serializer = GrantAccessSerializer(user, data=request.data)
         if serializer.is_valid():
             user = serializer.save()
 
@@ -55,21 +148,34 @@ class CreateUserAPIView(APIView):
                 reverse("verify-account", kwargs={"uidb64": uid, "token": token})
             )
 
+            # Access the user's default password
+            default_password = user.default_password
+
             # send activation link
             subject = "Activate your account"
-            message = f"Please click on the link to change your password from the default one: {activation_link}"
-            recipient_email = serializer.validated_data["email_address"]
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient_email])
+            message = f"Please click on the link to change your password from the default one: {activation_link}. Your default password is: {default_password}"
+            recipient_email = recipient_email = user.email_address
 
-            ActivationToken.objects.create(user=user, token=token)
+            try:
+                send_user_email(
+                    subject=subject,
+                    message=message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[recipient_email],
+                )
 
-            response = {
-                "activation_link": activation_link,
-                "uid": uid,
-                "token": token,
-            }
-
-            return Response(data=response, status=status.HTTP_201_CREATED)
+                ActivationToken.objects.create(user=user, token=token)
+                response = {
+                    "activation_link": activation_link,
+                    "uid": uid,
+                    "token": token,
+                }
+                return Response(data=response, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response(
+                    {"error": "Failed to send email notifications", "details": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -530,3 +636,23 @@ class DeactivateUerPAIView(APIView):
             return Response({"success": True}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# List all unverified and inactive users - Sub-admin
+class AllUsersAPIView(APIView):
+    # authentication_classes = [JWTAuthentication]
+    # permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        operation_summary="This endpoint lists all transactions for the current user",
+        operation_description="""
+        This endpoint retrieves all transactions for a logged in user.        
+    """,)
+    def get(self, request):
+        users = CustomUser.objects.filter(is_verified=False)
+        serializer = CustomUsersSerializer(users, many=True)
+
+        response = {
+            "users": "All unverified users",
+            "data": serializer.data,
+        }
+        return Response(data=response, status=status.HTTP_200_OK)

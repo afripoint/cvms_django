@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "accounts",
     "logs",
     "departments",
+    "roles",
 ]
 
 MIDDLEWARE = [
@@ -140,3 +141,9 @@ SIMPLE_JWT = {
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+# Admin email
+ADMINS = [
+    ('Super Administrator', 'super_admin@cvms.com'),
+    # Add more admins as needed
+]

@@ -1,8 +1,12 @@
 from rest_framework import serializers
 from accounts.models import CustomUser
+from django.utils.http import urlsafe_base64_decode
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 import re
+
+from departments.models import Command, Department, Rank
+from roles.models import Role
 
 
 class CustomUserSerializer(serializers.ModelSerializer):
@@ -49,6 +53,9 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
 
 class ChangeDefaultPassword(serializers.ModelSerializer):
+    default_password = serializers.CharField(
+        required=True, min_length=8, write_only=True
+    )
     password = serializers.CharField(required=True, min_length=8, write_only=True)
     confirm_password = serializers.CharField(
         required=True, min_length=8, write_only=True
@@ -59,11 +66,32 @@ class ChangeDefaultPassword(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = (
+            "default_password",
             "password",
             "confirm_password",
             "token",
             "uidb64",
         )
+
+    def validate_default_password(self, value):
+
+        if len(value) == 0:
+            raise ValidationError("Provide default password.")
+
+        # Get uidb64 from the validated data
+        uidb64 = self.initial_data.get("uidb64")
+        try:
+            # Decode the user ID from uidb64
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = CustomUser.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+            raise ValidationError("Invalid user ID.")
+
+        # Check if the provided default_password matches the stored one
+        if user.default_password != value:
+            raise ValidationError("Default password does not match our records.")
+
+        return value
 
     def validate_password(self, value):
         if not re.search(r"[A-Z]", value):
@@ -90,36 +118,40 @@ class ChangeDefaultPassword(serializers.ModelSerializer):
         # The save method will just return the validated data
         return self.validated_data
 
+
 class ResetPasswordSerializer(serializers.ModelSerializer):
     old_password = serializers.CharField(required=True, write_only=True)
     new_password = serializers.CharField(required=True, min_length=8, write_only=True)
-    confirm_new_password = serializers.CharField(required=True, min_length=8, write_only=True)
+    confirm_new_password = serializers.CharField(
+        required=True, min_length=8, write_only=True
+    )
+
     class Meta:
         model = CustomUser
-        fields = ('old_password', 'new_password', 'confirm_new_password')
+        fields = ("old_password", "new_password", "confirm_new_password")
 
     def validate_old_password(self, value):
-        user = self.context['request'].user
+        user = self.context["request"].user
 
         if not user.check_password(value):
-            raise serializers.ValidationError(
-                "Your old password is incorrect."
-            )
+            raise serializers.ValidationError("Your old password is incorrect.")
         return value
-    
+
     def validate_new_password(self, value):
         if not re.search(r"[A-Z]", value):
             raise serializers.ValidationError(
                 "Password must contain at least one uppercase letter."
             )
         if not re.search(r"[0-9]", value):
-            raise serializers.ValidationError("Password must contain at least one digit.")
+            raise serializers.ValidationError(
+                "Password must contain at least one digit."
+            )
         if not re.search(r"[!@#$%^&*()\-_=+{};:,<.>]", value):
             raise serializers.ValidationError(
                 "Password must contain at least one special character."
             )
         return value
-    
+
     def validate(self, attrs):
         new_password = attrs.get("new_password", "").strip()
         confirm_new_password = attrs.get("confirm_new_password", "").strip()
@@ -129,10 +161,11 @@ class ResetPasswordSerializer(serializers.ModelSerializer):
         return attrs
 
     def save(self):
-        user = self.context['request'].user
-        user.set_password(self.validated_data['new_password'])
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password"])
         user.save()
         return user
+
 
 # Login serializer
 class LoginSerializer(serializers.ModelSerializer):
@@ -177,13 +210,94 @@ class DeactivateAdminUserSerializer(serializers.ModelSerializer):
     is_active = serializers.BooleanField()
 
     class Meta:
-       model = CustomUser
-       fields = ("is_active",)
-    
+        model = CustomUser
+        fields = ("is_active",)
+
     def validate_is_active(self, value):
         if value:
-            raise ValidationError('User is successfully deactivated')
+            raise ValidationError("User is successfully deactivated")
         else:
             raise ValidationError("Deactivation successfully")
 
 
+class UserCreationRequestSerializer(serializers.ModelSerializer):
+    command = serializers.PrimaryKeyRelatedField(queryset=Command.objects.all())
+    department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all())
+    rank = serializers.PrimaryKeyRelatedField(queryset=Rank.objects.all())
+    role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all())
+    # Include staff_id as a field in the serializer
+    staff_id = serializers.CharField(write_only=True, required=False)
+    password = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, min_length=0
+    )
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            "first_name",
+            "last_name",
+            "staff_id",
+            "email_address",
+            "command",
+            "department",
+            "role",
+            "rank",
+            "phone_number",
+            "password",
+        ]
+
+    def validate_email_address(self, value):
+        if CustomUser.objects.filter(email_address=value).exists():
+            raise serializers.ValidationError(
+                "A user with this email address already exists."
+            )
+        return value
+
+    def validate(self, attrs):
+        # Handle case where password might be blank
+        if not attrs.get("password"):
+            # Generate a default password if none is provided
+            attrs["password"] = CustomUser.generate_default_password()
+        return attrs
+
+    def create(self, validated_data):
+        # extract the related forien key data
+        command = validated_data.pop("command")
+        department = validated_data.pop("department")
+        rank = validated_data.pop("rank")
+        staff_id = validated_data.pop("staff_id", None)
+
+        # Retrieve or generate the password
+        password = validated_data.pop("password")
+
+        # Create a user with is_active=False initially
+        user = CustomUser.objects.create(
+            **validated_data,
+            is_active=False,  # User is not active until verified
+            is_verified=False
+        )
+
+        # Set the default password
+        user.set_password(password)
+        user.default_password = password
+        user.command = command
+        user.department = department
+        user.rank = rank
+        user.staff_id = staff_id
+        user.save()
+
+        return user
+
+
+class GrantAccessSerializer(serializers.ModelSerializer):
+    is_verified = serializers.BooleanField()
+
+    class Meta:
+        model = CustomUser
+        fields = ("is_verified",)
+
+
+class CustomUsersSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = "__all__"

@@ -1,15 +1,18 @@
 from django.urls import path
 from .views import (
+    AllUsersAPIView,
     ChangePasswordAPIView,
-    CreateUserAPIView,
+    # CreateUserAPIView,
     DeactivateUerPAIView,
     Enable2FAAPIView,
     ForgetPasswordAPIView,
+    GrantAccessAPIView,
     LogoutAPIView,
     PasswordTokenCheck,
     ResetPasswordAPIView,
     SetNewPasswordAPIView,
     TwoFALoginAPIView,
+    UserCreationRequestAPIView,
     Verify2FAAPIView,
     VerifyUser,
     LoginAPIView,
@@ -17,7 +20,7 @@ from .views import (
 
 
 urlpatterns = [
-    path("create-sub-admin/", CreateUserAPIView.as_view(), name="create-sub-admin"),
+    # path("create-sub-admin/", CreateUserAPIView.as_view(), name="create-sub-admin"),
     path(
         "verify-account/<str:uidb64>/<str:token>/",
         VerifyUser.as_view(),
@@ -54,5 +57,23 @@ urlpatterns = [
         "deactivate-admin-user/<str:slug>/",
         DeactivateUerPAIView.as_view(),
         name="deactivate-admin-user",
+    ),
+    # user_creation_request
+    path(
+        "user-creation-request/",
+        UserCreationRequestAPIView.as_view(),
+        name="user-creation-request",
+    ),
+    # grant access by thee super user
+    path(
+        "grant-access/<str:slug>/",
+        GrantAccessAPIView.as_view(),
+        name="grant-access",
+    ),
+    # unverified-users
+    path(
+        "unverified-users/",
+        AllUsersAPIView.as_view(),
+        name="unverified-user",
     ),
 ]
