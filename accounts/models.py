@@ -14,7 +14,7 @@ from django.contrib.auth.models import (
 )
 import pyotp
 
-from departments.models import Command, Department, Rank
+from departments.models import Command, Department, Rank, Zone
 from roles.models import Role
 
 
@@ -172,12 +172,13 @@ class ActivationToken(models.Model):
 
 class support_level1_profile(models.Model):
     user = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE
+        CustomUser, related_name="support_level1_profiles", on_delete=models.CASCADE
     )
     rank = models.ForeignKey(Rank, on_delete=models.CASCADE)
     staff_id = models.CharField(max_length=50)
     command = models.ForeignKey(Command, on_delete=models.CASCADE)
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
+    zone = models.ForeignKey(Zone, on_delete=models.CASCADE)
     slug = models.CharField(max_length=300, unique=True, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

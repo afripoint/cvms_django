@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.core.mail import send_mail, mail_admins
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import check_password
 from accounts.tokens import create_jwt_pair_for_user
 from django.utils import timezone
@@ -143,6 +144,10 @@ class GrantAccessAPIView(APIView):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
 
+            first_name = user.first_name
+            last_name = user.last_name
+            role = user.role
+
             # Construct activation link
             activation_link = request.build_absolute_uri(
                 reverse("verify-account", kwargs={"uidb64": uid, "token": token})
@@ -166,9 +171,7 @@ class GrantAccessAPIView(APIView):
 
                 ActivationToken.objects.create(user=user, token=token)
                 response = {
-                    "activation_link": activation_link,
-                    "uid": uid,
-                    "token": token,
+                    "message": f"You have successfully granted {first_name} {last_name} access; with the role of {role}"
                 }
                 return Response(data=response, status=status.HTTP_201_CREATED)
             except Exception as e:
@@ -599,18 +602,23 @@ class ResetPasswordAPIView(APIView):
 
 # Logout APIView
 class LogoutAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+   permission_classes = [IsAuthenticated]
+   authentication_classes = [JWTAuthentication]
 
-    @swagger_auto_schema(
-        operation_summary="This endpoint is responsible for logging tthe user out of the application",
-        operation_description="Logs out the user from the application by deleting their JWT tokens.",
+   @swagger_auto_schema(
+        operation_summary="This endpoint is responsible for logging the user out of the application",
+        operation_description="Logs out the user from the application by blacklisting their refresh JWT token.",
     )
-    def post(self, request):
-        user = request.user
-        user.create_jwt_pair_for_user(user).delete()
-        return Response(
-            data={"message": "You have been logged out"}, status=status.HTTP_200_OK
-        )
+   def post(self, request):
+        try:
+            # Obtain the user's refresh token from the request
+            refresh_token = request.data.get('refresh')
+            token = RefreshToken(refresh_token)
+            # Blacklist the refresh token
+            token.blacklist()
+            return Response({"message": "You have been logged out"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # deactivating a user

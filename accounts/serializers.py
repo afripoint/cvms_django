@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 import re
 
-from departments.models import Command, Department, Rank
+from departments.models import Command, Department, Rank, Zone
 from roles.models import Role
 
 
@@ -221,10 +221,26 @@ class DeactivateAdminUserSerializer(serializers.ModelSerializer):
 
 
 class UserCreationRequestSerializer(serializers.ModelSerializer):
-    command = serializers.PrimaryKeyRelatedField(queryset=Command.objects.all())
-    department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all())
-    rank = serializers.PrimaryKeyRelatedField(queryset=Rank.objects.all())
-    role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all())
+    command = serializers.SlugRelatedField(
+        queryset=Command.objects.all(), 
+        slug_field='command_name'  # Field used for string representation
+    )
+    department = serializers.SlugRelatedField(
+        queryset=Department.objects.all(), 
+        slug_field='department_name'  # Field used for string representation
+    )
+    rank = serializers.SlugRelatedField(
+        queryset=Rank.objects.all(), 
+        slug_field='rank_level'  # Field used for string representation
+    )
+    role = serializers.SlugRelatedField(
+        queryset=Role.objects.all(), 
+        slug_field='role'  # Adjust this to the correct field in the Role model
+    )
+    zone = serializers.SlugRelatedField(
+        queryset=Zone.objects.all(),
+        slug_field='zone'  # Field used for string representation
+    )
     # Include staff_id as a field in the serializer
     staff_id = serializers.CharField(write_only=True, required=False)
     password = serializers.CharField(
@@ -242,6 +258,7 @@ class UserCreationRequestSerializer(serializers.ModelSerializer):
             "department",
             "role",
             "rank",
+            "zone",
             "phone_number",
             "password",
         ]
@@ -265,6 +282,7 @@ class UserCreationRequestSerializer(serializers.ModelSerializer):
         command = validated_data.pop("command")
         department = validated_data.pop("department")
         rank = validated_data.pop("rank")
+        zone = validated_data.pop("zone")
         staff_id = validated_data.pop("staff_id", None)
 
         # Retrieve or generate the password
@@ -283,6 +301,7 @@ class UserCreationRequestSerializer(serializers.ModelSerializer):
         user.command = command
         user.department = department
         user.rank = rank
+        user.zone = zone
         user.staff_id = staff_id
         user.save()
 

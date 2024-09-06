@@ -1,6 +1,7 @@
 from decouple import config
 from pathlib import Path
 from datetime import timedelta
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -27,6 +28,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "drf_yasg",
+    "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "accounts",
     "logs",
     "departments",
@@ -123,7 +126,6 @@ CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 
 
-
 # Email backend configuration
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "sandbox.smtp.mailtrap.io"
@@ -134,16 +136,17 @@ EMAIL_HOST_USER = "59057d3cd17888"
 EMAIL_HOST_PASSWORD = "714b21431cd663"
 
 
-
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=2),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ROTATE_REFRESH_TOKENS": True,
 }
 
 # Admin email
 ADMINS = [
-    ('Super Administrator', 'super_admin@cvms.com'),
+    ("Super Administrator", "super_admin@cvms.com"),
     # Add more admins as needed
 ]
