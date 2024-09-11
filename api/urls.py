@@ -37,6 +37,7 @@ urlpatterns = [
     path("logs/", include("logs.urls")),
     path("roles/", include("roles.urls")),
     path("verification/", include("verifications.urls")),
+    path("data_uploads/", include("data_uploads.urls")),
 ]
 
 

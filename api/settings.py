@@ -1,6 +1,7 @@
 from decouple import config
 from pathlib import Path
 from datetime import timedelta
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,14 +28,18 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "drf_yasg",
-    "rest_framework",
-    "rest_framework_simplejwt.token_blacklist",
     "accounts",
     "logs",
     "departments",
     "roles",
     "verifications",
+    "data_uploads",
+    # third party packages
+    "drf_yasg",
+    "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
+    "corsheaders",
+    "rest_framework_simplejwt",
 ]
 
 MIDDLEWARE = [
@@ -44,6 +49,10 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+     # -------CORS-----
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
+     # -------CORS-----
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -114,6 +123,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+MEDIA_URL = "/media/"
+
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -151,3 +165,13 @@ ADMINS = [
     ("Super Administrator", "super_admin@cvms.com"),
     # Add more admins as needed
 ]
+
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
+}
