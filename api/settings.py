@@ -22,9 +22,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-f*$dp9#im)nkbux#8lml8j#wn^1jvtxu6tb6%&k47f+inid09-"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -157,13 +157,22 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 # Email backend configuration
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_HOST = "sandbox.smtp.mailtrap.io"
+# EMAIL_PORT = 2525
+# EMAIL_USE_TLS = True
+# EMAIL_USE_SSL = False
+# EMAIL_HOST_USER = "59057d3cd17888"
+# EMAIL_HOST_PASSWORD = "714b21431cd663"
+
+# Busola's credentials
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "sandbox.smtp.mailtrap.io"
 EMAIL_PORT = 2525
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
-EMAIL_HOST_USER = "59057d3cd17888"
-EMAIL_HOST_PASSWORD = "714b21431cd663"
+EMAIL_HOST_USER = "75d8a84e8bede4"
+EMAIL_HOST_PASSWORD = "8f4df8ea027b6f"
 
 
 SIMPLE_JWT = {
