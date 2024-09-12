@@ -22,6 +22,7 @@ from datetime import timedelta
 from rest_framework import status
 from django.conf import settings
 from accounts.utils import send_admin_email, send_user_email
+from data_uploads.pagination import AllUnveriifiedUsers
 from logs.models import Log
 from .serializers import (
     ChangeDefaultPassword,
@@ -86,7 +87,6 @@ class UserCreationRequestAPIView(APIView):
     )
     def post(self, request):
         serializer = UserCreationRequestSerializer(data=request.data)
-       
 
         if serializer.is_valid():
             user = serializer.save()
@@ -602,21 +602,23 @@ class ResetPasswordAPIView(APIView):
 
 # Logout APIView
 class LogoutAPIView(APIView):
-   permission_classes = [IsAuthenticated]
-   authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
-   @swagger_auto_schema(
+    @swagger_auto_schema(
         operation_summary="This endpoint is responsible for logging the user out of the application",
         operation_description="Logs out the user from the application by blacklisting their refresh JWT token.",
     )
-   def post(self, request):
+    def post(self, request):
         try:
             # Obtain the user's refresh token from the request
-            refresh_token = request.data.get('refresh')
+            refresh_token = request.data.get("refresh")
             token = RefreshToken(refresh_token)
             # Blacklist the refresh token
             token.blacklist()
-            return Response({"message": "You have been logged out"}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "You have been logged out"}, status=status.HTTP_200_OK
+            )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -650,17 +652,37 @@ class DeactivateUerPAIView(APIView):
 class AllUsersAPIView(APIView):
     # authentication_classes = [JWTAuthentication]
     # permission_classes = [IsAuthenticated]
+    pagination_class = AllUnveriifiedUsers
+
     @swagger_auto_schema(
-        operation_summary="This endpoint lists all transactions for the current user",
+        operation_summary="This endpoint lists all unverified user",
         operation_description="""
-        This endpoint retrieves all transactions for a logged in user.        
-    """,)
+        This endpoint retrieves all unverified user.        
+    """,
+    )
     def get(self, request):
         users = CustomUser.objects.filter(is_verified=False)
-        serializer = CustomUsersSerializer(users, many=True)
 
-        response = {
-            "users": "All unverified users",
-            "data": serializer.data,
+        # Initialize the paginator
+        paginator = self.pagination_class()
+
+        # Paginate the queryset
+        page = paginator.paginate_queryset(users, request, view=self)
+
+        # Serialize the data
+        serializer = CustomUsersSerializer(page, many=True)
+
+        # Construct the response
+        paginated_response_data = paginator.get_paginated_response(serializer.data).data
+
+        custom_response_data = {
+            "message": "All unverified user.",
+            "metadata": {
+                "count": paginated_response_data.get("count"),
+                "next": paginated_response_data.get("next"),
+                "previous": paginated_response_data.get("previous"),
+            },
+            "data": paginated_response_data.get("results"),
         }
-        return Response(data=response, status=status.HTTP_200_OK)
+
+        return Response(data=custom_response_data, status=status.HTTP_200_OK)

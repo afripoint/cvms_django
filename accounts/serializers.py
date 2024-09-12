@@ -222,24 +222,24 @@ class DeactivateAdminUserSerializer(serializers.ModelSerializer):
 
 class UserCreationRequestSerializer(serializers.ModelSerializer):
     command = serializers.SlugRelatedField(
-        queryset=Command.objects.all(), 
-        slug_field='command_name'  # Field used for string representation
+        queryset=Command.objects.all(),
+        slug_field="command_name",  # Field used for string representation
     )
     department = serializers.SlugRelatedField(
-        queryset=Department.objects.all(), 
-        slug_field='department_name'  # Field used for string representation
+        queryset=Department.objects.all(),
+        slug_field="department_name",  # Field used for string representation
     )
     rank = serializers.SlugRelatedField(
-        queryset=Rank.objects.all(), 
-        slug_field='rank_level'  # Field used for string representation
+        queryset=Rank.objects.all(),
+        slug_field="rank_level",  # Field used for string representation
     )
     role = serializers.SlugRelatedField(
-        queryset=Role.objects.all(), 
-        slug_field='role'  # Adjust this to the correct field in the Role model
+        queryset=Role.objects.all(),
+        slug_field="role",  # Adjust this to the correct field in the Role model
     )
     zone = serializers.SlugRelatedField(
         queryset=Zone.objects.all(),
-        slug_field='zone'  # Field used for string representation
+        slug_field="zone",  # Field used for string representation
     )
     # Include staff_id as a field in the serializer
     staff_id = serializers.CharField(write_only=True, required=False)
@@ -319,4 +319,13 @@ class GrantAccessSerializer(serializers.ModelSerializer):
 class CustomUsersSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = "__all__"
+        fields = (
+            "phone_number",
+            "first_name",
+            "last_name",
+            "email_address",
+            "gender",
+            "role",
+            "is_active",
+            "is_verified",
+        )
