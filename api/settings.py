@@ -1,7 +1,15 @@
 from decouple import config
 from pathlib import Path
 from datetime import timedelta
+import dj_database_url
 import os
+
+import environ
+
+env = environ.Env()
+
+environ.Env.read_env()
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -14,9 +22,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-f*$dp9#im)nkbux#8lml8j#wn^1jvtxu6tb6%&k47f+inid09-"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -49,10 +57,10 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-     # -------CORS-----
+    # -------CORS-----
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
-     # -------CORS-----
+    # -------CORS-----
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -80,12 +88,14 @@ WSGI_APPLICATION = "api.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
+#     }
+# }
+
+DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL"))}
 
 
 # Password validation
