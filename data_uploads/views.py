@@ -55,3 +55,6 @@ class UploadFileAPIView(APIView):
         if "error" in result:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
         return Response(result, status=status.HTTP_200_OK)
+
+
+# class GetAllVinAPIView(API)
