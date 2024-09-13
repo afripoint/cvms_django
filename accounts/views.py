@@ -1,16 +1,16 @@
 from django.http import HttpResponseRedirect, HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import pyotp
+from django.contrib.auth.hashers import check_password
 from django.utils.encoding import DjangoUnicodeDecodeError
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.core.mail import send_mail, mail_admins
+from django.core.mail import send_mail
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth.hashers import check_password
 from accounts.tokens import create_jwt_pair_for_user
 from django.utils import timezone
 from django.contrib.auth.tokens import default_token_generator
@@ -281,100 +281,85 @@ class LoginAPIView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        ip_address = request.META.get("REMOTE_ADDR")
 
-        # get the email and password
-        email_address = serializer.validated_data.get("email_address", "")
-        password = serializer.validated_data.get("password", "")
-
-        # Save the email in the session
-        request.session["email_address"] = email_address
-
+        email_address = serializer.validated_data.get("email_address")
+        password = serializer.validated_data.get("password")
         try:
+            # Fetch the user by email
             user = CustomUser.objects.get(email_address=email_address, is_verified=True)
-
-            # Check if the user is locked out
-            if user.login_attempts <= 3 and not user.is_active:
-                if user.last_login_attempt:
-                    lockout_time = user.last_login_attempt + timedelta(hours=2)
-                    if timezone.now() < lockout_time:
-                        return Response(
-                            data={
-                                "Messsage": "User account is locked. try again after two hours"
-                            },
-                            status=status.HTTP_403_FORBIDDEN,
-                        )
-                    else:
-                        # Reactivate the user after 2 hours
-                        user.is_active = True
-                        user.login_attempts = 0
-                        user.last_login_attempt = None
-                        user.save()
-
-            # Authenticate the user
-            new_user = authenticate(
-                request, email_address=email_address, password=password
-            )
-
-            if new_user is not None:
-                user.successful_login_attempt()
-
-                if not user.is_active:
-                    return Response(
-                        data={
-                            "message": "User account is not active. activate acccount"
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-
-                # Check if 2FA is enabled
-                if user.is_2fa_enabled:
-                    # If 2FA is enabled, require a valid token
-                    # This should navigate to a screen where the user will have to input the OTP and done by the frontend
-                    # If 2FA is enabled, send a response indicating that the 2FA token is required
-                    return Response(
-                        {"message": "2FA required", "requires_2fa": True},
-                        status=status.HTTP_200_OK,
-                    )
-                else:
-
-                    # Generate JWT tokens and return response if 2FA is not enabled
-                    tokens = create_jwt_pair_for_user(new_user)
-                    response = {
-                        "message": "Login Successfully",
-                        "token": tokens,
-                        "user": {
-                            "first_name": user.first_name,
-                            "last_name": user.last_name,
-                        },
-                    }
-                    return Response(data=response, status=status.HTTP_200_OK)
-            else:
-                user.unsuccessful_login_attempt()
-                # log the event
-                Log.objects.create(
-                    log_type=Log.LOGIN_ATTEMPT,
-                    message="Unsuccessful login attempt - Invalid credentials",
-                    user=user.email_address,
-                    ip_address=ip_address,
-                )
-                return Response(
-                    data={"message": "Invalid credentials"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
         except CustomUser.DoesNotExist:
-            Log.objects.create(
-                log_type=Log.LOGIN_ATTEMPT,
-                user=None,
-                message="Unsuccessful login attempt - User does not exist",
-                email=email_address,
-                ip_address=ip_address,
-            )
             return Response(
-                data={"message": "User does not exist"},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"message": "User with this email does not exist"}, status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Check if the user is locked out
+        if user.login_attempts >= 3 and not user.is_active:
+            if (
+                user.last_login_attempt
+                and timezone.now() < user.last_login_attempt + timedelta(hours=2)
+            ):
+                return Response(
+                    {"message": "User account is locked. Try again after two hours."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            else:
+                # Reset user lockout after 2 hours
+                user.is_active = True
+                user.login_attempts = 0
+                user.last_login_attempt = None
+                user.save()
+
+        # Validate the password
+        if not user.check_password(password):
+            user.unsuccessful_login_attempt()
+            return Response(
+                {"message": "Incorrect password"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Reactivate account if successful login
+        user.successful_login_attempt()
+
+        # Check if the account is inactive
+        if not user.is_active:
+            return Response(
+                {"message": "User account is not active. Please activate the account."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Check if 2FA is enabled
+        if user.is_2fa_enabled:
+            return Response(
+                {"message": "2FA required", "requires_2fa": True},
+                status=status.HTTP_200_OK,
+            )
+
+        # Authenticate the user
+        authenticated_user = authenticate(
+            request=request,
+            username=email_address,
+            password=password,
+        )
+
+        if authenticated_user is None:
+            user.unsuccessful_login_attempt()
+            return Response(
+                {"message": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Generate tokens and return user info
+        tokens = create_jwt_pair_for_user(authenticated_user)
+
+        return Response(
+            {
+                "message": "Login successfully",
+                "token": tokens,
+                "user": {
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # Two factor verification and login
