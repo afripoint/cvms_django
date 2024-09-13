@@ -4,6 +4,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 import pyotp
 from django.utils.encoding import DjangoUnicodeDecodeError
 from django.core.exceptions import ObjectDoesNotExist
+from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.core.mail import send_mail, mail_admins
@@ -86,24 +87,22 @@ class UserCreationRequestAPIView(APIView):
         request_body=UserCreationRequestSerializer,
     )
     def post(self, request):
-        serializer = UserCreationRequestSerializer(data=request.data)
+        try:
+            serializer = UserCreationRequestSerializer(data=request.data)
 
-        if serializer.is_valid():
-            user = serializer.save()
+            if serializer.is_valid():
+                user = serializer.save()
 
-            # Get user details for email notification
-            first_name = serializer.validated_data["first_name"]
-            last_name = serializer.validated_data["last_name"]
+                # Get user details for email notification
+                first_name = serializer.validated_data["first_name"]
+                last_name = serializer.validated_data["last_name"]
+                recipient_email = serializer.validated_data["email_address"]
 
-            # Email content
-            subject = "Access request"
-            message_admin = f"A CVMS user - {first_name} {last_name} is requesting access to the dashboard. Kindly login to the dashboard and grant access"
-            message_user = "You have requested access to the CVMS admin dashboard. You will be notified when granted access."
+                # Email content
+                subject = "Access request"
+                message_admin = f"A CVMS user - {first_name} {last_name} is requesting access to the dashboard. Kindly login to the dashboard and grant access"
+                message_user = "You have requested access to the CVMS admin dashboard. You will be notified when granted access."
 
-            recipient_email = serializer.validated_data["email_address"]
-
-            try:
-                # Send email to the admin
                 send_admin_email(subject=subject, message=message_admin)
 
                 # Send email to the user
@@ -118,13 +117,21 @@ class UserCreationRequestAPIView(APIView):
                     {"message": "Request for access sent"},
                     status=status.HTTP_200_OK,
                 )
-            except Exception as e:
-                # Handle email sending error
-                return Response(
-                    {"error": "Failed to send email notifications", "details": str(e)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except serializers.ValidationError as e:
+            return Response(
+                {"error": "Validation failed", "details": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except Exception as e:
+            # Handle email sending error
+            return Response(
+                {"error": "Failed to send email notifications", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class GrantAccessAPIView(APIView):

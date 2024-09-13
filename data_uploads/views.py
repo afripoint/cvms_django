@@ -5,7 +5,13 @@ import csv
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from data_uploads.pagination import VinPagination
-from data_uploads.utils import process_csv, process_excel
+from data_uploads.utils import (
+    is_duplicate,
+    process_csv,
+    process_excel,
+    process_json,
+    process_xml,
+)
 from .serializers import CustomDutyUploadSerializer
 from .models import CustomDutyFile
 from rest_framework.response import Response
@@ -35,6 +41,7 @@ class UploadFileAPIView(APIView):
     def post(self, request, *args, **kwargs):
         # Check if file is in request
         file = request.FILES.get("file")
+        # overwrite = request.data.get("overwrite", False)
 
         if not file:
             return Response(
@@ -48,14 +55,29 @@ class UploadFileAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Check for duplicate files by name or content
+        # if is_duplicate(file) and not overwrite:
+        #     return Response(
+        #         {
+        #             "error": "Duplicate file detected. Set 'overwrite' to true to overwrite the existing file."
+        #         },
+        #         status=status.HTTP_400_BAD_REQUEST,
+        #     )
+
         # Process the file based on its etension
         if file.name.endswith(".csv"):
             result = process_csv(file)
         elif file.name.endswith((".xls", ".xlsx")):
             result = process_excel(file)
+        elif file.name.endswith(".json"):
+            result = process_json(file)
+        elif file.name.endswith(".xml"):
+            result = process_xml(file)
         else:
             return Response(
-                {"error": "Invalid file format. Please upload a CSV or Excel file."},
+                {
+                    "error": "Invalid file format. Please upload a CSV, Excel, JSON, or XML file."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if "error" in result:

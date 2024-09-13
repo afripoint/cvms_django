@@ -324,6 +324,7 @@ class CustomUsersSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "email_address",
+            "slug",
             "gender",
             "role",
             "is_active",
