@@ -1,10 +1,13 @@
 from rest_framework import serializers
 from accounts.models import CustomUser
+from datetime import timedelta
 from django.utils.http import urlsafe_base64_decode
 from django.core.exceptions import ValidationError
-from django.contrib.auth import get_user_model
+from django.utils import timezone
+from django.contrib.auth import authenticate
 import re
 
+from accounts.tokens import create_jwt_pair_for_user
 from departments.models import Command, Department, Rank, Zone
 from roles.models import Role
 
@@ -168,15 +171,20 @@ class ResetPasswordSerializer(serializers.ModelSerializer):
 
 
 # Login serializer
-class LoginSerializer(serializers.ModelSerializer):
-    email_address = serializers.CharField(required=True)
+class LoginSerializer(serializers.Serializer):
+    email_address = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True)
 
-    class Meta:
-        model = CustomUser
-        fields = (
-            "email_address",
-            "password",
-        )
+    # No business logic needed here, just ensure the fields are present and valid
+    def validate(self, data):
+        email_address = data.get("email_address")
+        password = data.get("password")
+
+        # Ensure both email and password are provided
+        if not email_address or not password:
+            raise serializers.ValidationError("Email and password are required.")
+
+        return data
 
 
 # two factor serializer
@@ -318,10 +326,7 @@ class GrantAccessSerializer(serializers.ModelSerializer):
 
 class CustomUsersSerializer(serializers.ModelSerializer):
     role = serializers.StringRelatedField()
-    # role = serializers.SlugRelatedField(
-    #     queryset=Role.objects.all(),
-    #     slug_field="role",
-    # )
+
     class Meta:
         model = CustomUser
         fields = (
