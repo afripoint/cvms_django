@@ -340,3 +340,40 @@ class CustomUsersSerializer(serializers.ModelSerializer):
             "is_active",
             "is_verified",
         )
+
+
+class SetNewPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(min_length=8, write_only=True)
+    confirm_password = serializers.CharField(min_length=8, write_only=True)
+    token = serializers.CharField(min_length=5, write_only=True)
+    uidb64 = serializers.CharField(min_length=5, write_only=True)
+
+    class Meta:
+        fields = (
+            "password",
+            "confirm_password",
+            "token",
+            "uidb64",
+        )
+
+    def validate_password(self, value):
+        if not re.search(r"[A-Z]", value):
+            raise ValidationError(
+                "Password must contain at least one uppercase letter."
+            )
+        if not re.search(r"[0-9]", value):
+            raise ValidationError("Password must contain at least one digit.")
+        if not re.search(r"[!@#$%^&*()\-_=+{};:,<.>]", value):
+            raise ValidationError(
+                "Password must contain at least one special character."
+            )
+        return value
+
+    def validate(self, attrs):
+        password = attrs.get("password", "").strip()
+        confirm_password = attrs.pop("confirm_password", "")
+
+        if password != confirm_password:
+            raise ValidationError("Password do not match")
+        return attrs
+

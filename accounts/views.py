@@ -34,6 +34,7 @@ from .serializers import (
     GrantAccessSerializer,
     LoginSerializer,
     ResetPasswordSerializer,
+    SetNewPasswordSerializer,
     TwoFASerializer,
     UserCreationRequestSerializer,
     Verify2FASerializer,
@@ -131,7 +132,7 @@ class UserCreationRequestAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class GrantAccessAPIView(APIView):
@@ -220,7 +221,7 @@ class VerifyUser(APIView):
             # )
 
 
-class ChangePasswordAPIView(APIView):
+class ChangeDefaultPasswordAPIView(APIView):
     @swagger_auto_schema(
         operation_summary="This is responsible for changing the default password",
         operation_description="This endpoint change the default password",
@@ -538,12 +539,12 @@ class PasswordTokenCheck(APIView):
 
 class SetNewPasswordAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This is responsible for setting new password",
-        operation_description="This endpoint setting new password.",
-        request_body=ChangeDefaultPassword,
+        operation_summary="This is responsible for setting new password when password is forgotten",
+        operation_description="This endpoint set new password when password is forgotten.",
+        request_body=SetNewPasswordSerializer,
     )
     def patch(self, request):
-        serializer = ChangeDefaultPassword(data=request.POST)
+        serializer = SetNewPasswordSerializer(data=request.POST)
         if serializer.is_valid():
             serializer.save()
             try:
