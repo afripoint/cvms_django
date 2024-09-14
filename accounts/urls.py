@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     AllUsersAPIView,
-    ChangePasswordAPIView,
+    ChangeDefaultPasswordAPIView,
     # CreateUserAPIView,
     DeactivateUerPAIView,
     Enable2FAAPIView,
@@ -26,7 +26,7 @@ urlpatterns = [
         VerifyUser.as_view(),
         name="verify-account",
     ),
-    path("change-password/", ChangePasswordAPIView.as_view(), name="change-password"),
+    path("change-default-password/", ChangeDefaultPasswordAPIView.as_view(), name="change-default-password"),
     path("login/", LoginAPIView.as_view(), name="login"),
     path("two-factor-login/", TwoFALoginAPIView.as_view(), name="two-factor-login"),
     path("enable2FA/", Enable2FAAPIView.as_view(), name="enable-2FA"),
@@ -47,7 +47,7 @@ urlpatterns = [
         name="reset-password-token-check",
     ),
     path(
-        "set-password-complete/",
+        "forgot-password/",
         SetNewPasswordAPIView.as_view(),
         name="set-password-complete",
     ),
