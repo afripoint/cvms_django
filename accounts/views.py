@@ -454,16 +454,16 @@ class Verify2FAAPIView(APIView):
 # forget Password
 class ForgetPasswordAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This endpoint is responsible for resetting a user's password.",
-        operation_description="This endpoint resets a user's password.",
+        operation_summary="This endpoint is responsible for getting users email to reset their password.",
+        operation_description="This endpoint collects user email for password reset.",
         request_body=ForgetPasswordEmailRequestSerializer,
     )
     def post(self, request):
         serializer = ForgetPasswordEmailRequestSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data["email"]
+            email_address = serializer.validated_data["email_address"]
             try:
-                user = CustomUser.objects.get(email=email)
+                user = CustomUser.objects.get(email_address=email_address)
             except ObjectDoesNotExist:
                 response = {
                     "message": "User with this email does not exist.",
@@ -485,10 +485,11 @@ class ForgetPasswordAPIView(APIView):
             # Send reset password email
             subject = "Reset Your Pasword"
             message = f"Please click the following link to reset your password: {activation_link}"
-            recipient_email = email
+            recipient_email = email_address
             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient_email])
 
             response = {
+                "message": "Reset email successfully sent. Please check your email.",
                 "uidb64": uid,
                 "token": token,
             }

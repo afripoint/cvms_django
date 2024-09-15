@@ -207,11 +207,11 @@ class Verify2FASerializer(serializers.Serializer):
 
 
 class ForgetPasswordEmailRequestSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(min_length=8)
+    email_address = serializers.EmailField(min_length=8)
 
     class Meta:
         model = CustomUser
-        fields = ("email",)
+        fields = ("email_address",)
 
 
 class DeactivateAdminUserSerializer(serializers.ModelSerializer):

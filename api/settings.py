@@ -191,10 +191,9 @@ SIMPLE_JWT = {
 }
 
 # Admin email
-ADMINS = [
-    ("Super Administrator", "super_admin@cvms.com"),
-    # Add more admins as needed
-]
+# ADMINS = [
+#     ("Super Administrator", "super_admin@cvms.com"),
+# ]
 
 
 STORAGES = {
