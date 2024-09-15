@@ -17,7 +17,6 @@ from .views import (
     UnverifiedUserDetailView,
     UserCreationRequestAPIView,
     UserDetailView,
-    VerifiedUserDetailView,
     Verify2FAAPIView,
     VerifyUser,
     LoginAPIView,
