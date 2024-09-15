@@ -780,7 +780,7 @@ class UnVerifiedUsersList(GenericAPIView):
         return queryset
 
 
-class VerifiedUserDetailView(GenericAPIView):
+class UnverifiedUserDetailView(GenericAPIView):
     queryset = CustomUser.objects.filter(is_verified=False)
     serializer_class = CustomUsersSerializer
     lookup_field = "slug"
