@@ -50,44 +50,6 @@ from .models import ActivationToken, CustomUser
 from rest_framework.permissions import IsAuthenticated
 
 
-# class CreateUserAPIView(APIView):
-#     @swagger_auto_schema(
-#         operation_summary="This is responsible for creating a sub-admin",
-#         operation_description="This endpoint creates sub-admin",
-#         request_body=CustomUserSerializer,
-#     )
-#     def post(self, request, *args, **kwargs):
-#         serializer = CustomUserSerializer(data=request.data)
-#         if serializer.is_valid():
-#             user = serializer.save()
-
-#             # Generate activation token
-#             uid = urlsafe_base64_encode(force_bytes(user.pk))
-#             token = default_token_generator.make_token(user)
-
-#             # Construct activation link
-#             activation_link = request.build_absolute_uri(
-#                 reverse("verify-account", kwargs={"uidb64": uid, "token": token})
-#             )
-
-#             # send activation link
-#             subject = "Activate your account"
-#             message = f"Please click on the link to change your password from the default one: {activation_link}"
-#             recipient_email = serializer.validated_data["email_address"]
-#             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient_email])
-
-#             ActivationToken.objects.create(user=user, token=token)
-
-#             response = {
-#                 "activation_link": activation_link,
-#                 "uid": uid,
-#                 "token": token,
-#             }
-
-#             return Response(data=response, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 class UserCreationRequestAPIView(APIView):
     @swagger_auto_schema(
         operation_summary="This endpoint allows a user to request access to the admin - user creation account",
@@ -789,7 +751,11 @@ class UnverifiedUserDetailView(GenericAPIView):
         try:
             unverified_user = self.get_object()
             serializer = self.get_serializer(unverified_user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            response = {
+                "message": "Successfully fetched user details",
+                "data" : serializer.data,
+            }
+            return Response(data=response, status=status.HTTP_200_OK)
 
         except CustomUser.DoesNotExist:
             return Response(
@@ -884,7 +850,11 @@ class UserDetailView(GenericAPIView):
         try:
             all_user = self.get_object()
             serializer = self.get_serializer(all_user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            response = {
+                "message": "Successfully fetched user details",
+                "data" : serializer.data,
+            }
+            return Response(data=response, status=status.HTTP_200_OK)
 
         except CustomUser.DoesNotExist:
             return Response(
