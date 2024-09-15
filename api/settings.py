@@ -95,14 +95,14 @@ WSGI_APPLICATION = "api.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#     }
-# }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
+}
 
-DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL"))}
+# DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL"))}
 
 
 # Password validation
@@ -163,22 +163,22 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 # Email backend configuration
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-# EMAIL_HOST = "sandbox.smtp.mailtrap.io"
-# EMAIL_PORT = 2525
-# EMAIL_USE_TLS = True
-# EMAIL_USE_SSL = False
-# EMAIL_HOST_USER = "59057d3cd17888"
-# EMAIL_HOST_PASSWORD = "714b21431cd663"
-
-# Busola's credentials
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "sandbox.smtp.mailtrap.io"
 EMAIL_PORT = 2525
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
-EMAIL_HOST_USER = "75d8a84e8bede4"
-EMAIL_HOST_PASSWORD = "8f4df8ea027b6f"
+EMAIL_HOST_USER = "59057d3cd17888"
+EMAIL_HOST_PASSWORD = "714b21431cd663"
+
+# Busola's credentials
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_HOST = "sandbox.smtp.mailtrap.io"
+# EMAIL_PORT = 2525
+# EMAIL_USE_TLS = True
+# EMAIL_USE_SSL = False
+# EMAIL_HOST_USER = "75d8a84e8bede4"
+# EMAIL_HOST_PASSWORD = "8f4df8ea027b6f"
 
 
 SIMPLE_JWT = {

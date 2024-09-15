@@ -323,6 +323,21 @@ class GrantAccessSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ("is_verified",)
 
+    def update(self, instance, validated_data):
+        # update is verified
+        instance.is_verified = validated_data.get("is_verified", instance.is_verified)
+
+        # automatically set the request_status based on verification status
+
+        if instance.is_verified:
+            instance.request_status = "approved"
+
+        else:
+            instance.request_status = "declined"
+
+        instance.save()
+        return instance
+
 
 class CustomUsersSerializer(serializers.ModelSerializer):
     role = serializers.StringRelatedField()
@@ -336,12 +351,20 @@ class CustomUsersSerializer(serializers.ModelSerializer):
             "email_address",
             "slug",
             "gender",
+            "request_status",
             "role",
             "is_active",
             "is_verified",
-            "created_at"
+            "created_at",
         )
-        read_only_fields = ("created_at", "slug",)
+        read_only_fields = (
+            "created_at",
+            "slug",
+            "request_status",
+            "is_active",
+            "is_verified",
+            "created_at",
+        )
 
 
 class SetNewPasswordSerializer(serializers.Serializer):
@@ -378,4 +401,3 @@ class SetNewPasswordSerializer(serializers.Serializer):
         if password != confirm_password:
             raise ValidationError("Password do not match")
         return attrs
-

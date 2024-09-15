@@ -1,4 +1,6 @@
 from django.http import HttpResponseRedirect, HttpResponse
+from smtplib import SMTPException
+import logging
 from rest_framework import generics
 from django.utils.dateparse import parse_date
 from rest_framework import filters
@@ -28,7 +30,7 @@ from datetime import timedelta
 from rest_framework import status
 from django.conf import settings
 from accounts.utils import send_admin_email, send_user_email
-from data_uploads.pagination import AllUnverifiedUsersPegination
+from data_uploads.pagination import AllUnverifiedUsersPegination, AllUsersPegination
 from logs.models import Log
 from .serializers import (
     ChangeDefaultPassword,
@@ -140,6 +142,7 @@ class UserCreationRequestAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# approve request view
 class GrantAccessAPIView(APIView):
     @swagger_auto_schema(
         operation_summary="This endpoint verify users - admin",
@@ -174,6 +177,24 @@ class GrantAccessAPIView(APIView):
             message = f"Please click on the link to change your password from the default one: {activation_link}. Your default password is: {default_password}"
             recipient_email = recipient_email = user.email_address
 
+            if user.is_verified:
+                # Email content for approved users
+                subject = "Activate your account"
+                message = (
+                    f"Dear {first_name} {last_name},\n\n"
+                    f"Your account has been verified and granted access as {role}. "
+                    f"Please click on the link to change your password from the default one: {activation_link}. "
+                    f"Your default password is: {default_password}."
+                )
+            else:
+                # Email content for declined users
+                subject = "Account Verification Declined"
+                message = (
+                    f"Dear {first_name} {last_name},\n\n"
+                    f"Unfortunately, your account verification has been declined. "
+                    f"If you believe this is a mistake, please contact support for assistance."
+                )
+
             try:
                 send_user_email(
                     subject=subject,
@@ -182,9 +203,20 @@ class GrantAccessAPIView(APIView):
                     recipient_list=[recipient_email],
                 )
 
-                ActivationToken.objects.create(user=user, token=token)
+                # Save activation token (only for approved users)
+
+                if user.is_verified:
+                    ActivationToken.objects.create(user=user, token=token)
+
+                    # Success response based on verification status
+
+                status_message = (
+                    f"You have successfully granted {first_name} {last_name} access with the role of {role}"
+                    if user.is_verified
+                    else f"Access for {first_name} {last_name} has been declined."
+                )
                 response = {
-                    "message": f"You have successfully granted {first_name} {last_name} access; with the role of {role}"
+                    "message": status_message,
                 }
                 return Response(data=response, status=status.HTTP_201_CREATED)
             except Exception as e:
@@ -486,18 +518,46 @@ class ForgetPasswordAPIView(APIView):
             subject = "Reset Your Pasword"
             message = f"Please click the following link to reset your password: {activation_link}"
             recipient_email = email_address
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient_email])
 
-            response = {
-                "message": "Reset email successfully sent. Please check your email.",
-                "uidb64": uid,
-                "token": token,
-            }
+            try:
+                send_mail(
+                    subject, message, settings.DEFAULT_FROM_EMAIL, [recipient_email]
+                )
+                response = {
+                    "message": "Reset email successfully sent. Please check your email.",
+                    "uidb64": uid,
+                    "token": token,
+                }
 
-            # response = {
-            #     "activation_link": f"Activation link {activation_link} sent successfully",
-            # }
-            return Response(data=response, status=status.HTTP_200_OK)
+                return Response(data=response, status=status.HTTP_200_OK)
+
+            except SMTPException as e:
+                logging.error(f"SMTPException occurred: {str(e)}")
+                response = {
+                    "message": "There was an error sending the reset email. Please try again later.",
+                    "error": str(e),
+                }
+                return Response(
+                    data=response, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            except ConnectionRefusedError as e:
+                logging.error(f"Connection error: {str(e)}")
+                response = {
+                    "message": "Could not connect to the email server. Please check your email settings.",
+                }
+                return Response(
+                    data=response, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            except TimeoutError as e:
+                logging.error(f"Timeout occurred: {str(e)}")
+                response = {
+                    "message": "Email server timeout. Please try again later.",
+                }
+                return Response(
+                    data=response, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -648,47 +708,7 @@ class DeactivateUerPAIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-"""
-
-# List all unverified and inactive users - Sub-admin
-class AllVerifiedUsersList(APIView):
-    # authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
-    pagination_class = AllUnverifiedUsersPegination
-
-    @swagger_auto_schema(
-        operation_summary="This endpoint lists all unverified user",
-        operation_description="This endpoint retrieves all unverified user.,"
-    )
-    def get(self, request):
-        users = CustomUser.objects.filter(is_verified=False)
-
-        # Initialize the paginator
-        paginator = self.pagination_class()
-
-        # Paginate the queryset
-        page = paginator.paginate_queryset(users, request, view=self)
-
-        # Serialize the data
-        serializer = CustomUsersSerializer(page, many=True)
-
-        # Construct the response
-        paginated_response_data = paginator.get_paginated_response(serializer.data).data
-
-        custom_response_data = {
-            "message": "All unverified user.",
-            "metadata": {
-                "count": paginated_response_data.get("count"),
-                "next": paginated_response_data.get("next"),
-                "previous": paginated_response_data.get("previous"),
-            },
-            "data": paginated_response_data.get("results"),
-        }
-
-        return Response(data=custom_response_data, status=status.HTTP_200_OK)
-"""
-
-
+# unveried users list
 class UnVerifiedUsersList(GenericAPIView):
     queryset = CustomUser.objects.filter(is_verified=False)
     serializer_class = CustomUsersSerializer
@@ -728,7 +748,7 @@ class UnVerifiedUsersList(GenericAPIView):
                 type=openapi.TYPE_STRING,
                 format=openapi.FORMAT_DATE,
             ),
-        ]
+        ],
     )
     def get(self, request, *args, **kwargs):
         verified_users = self.get_queryset()
@@ -777,4 +797,96 @@ class VerifiedUserDetailView(GenericAPIView):
             )
 
 
-# throathing
+# throathing meaning 
+
+
+
+class AllUsersList(GenericAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = CustomUsersSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["first_name", "email_address", "phone_number"]
+    pagination_class = AllUsersPegination
+
+    @swagger_auto_schema(
+        operation_summary="List all users with optional date, first_name, email_address and phone_number  filters",
+        operation_description="""
+        This endpoint retrieves all users. 
+        Optionally, you can filter users by their registration date by providing the following query parameters:
+
+        - **first_name**: Filters users with their first name.
+        - **email_address**: Filters users with their email_address.
+        - **phone_number**: Filters users with their phone_number.
+        - **start_date**: Filters users registered on or after this date (YYYY-MM-DD).
+        - **end_date**: Filters users registered on or before this date (YYYY-MM-DD).
+
+        Example usage:
+        ```
+        GET /api/unverified-users/?start_date=2023-01-01&end_date=2023-03-01
+        ```
+        """,
+        manual_parameters=[
+            openapi.Parameter(
+                "start_date",
+                openapi.IN_QUERY,
+                description="Filter users from this date (YYYY-MM-DD)",
+                type=openapi.TYPE_STRING,
+                format=openapi.FORMAT_DATE,
+            ),
+            openapi.Parameter(
+                "end_date",
+                openapi.IN_QUERY,
+                description="Filter users up to this date (YYYY-MM-DD)",
+                type=openapi.TYPE_STRING,
+                format=openapi.FORMAT_DATE,
+            ),
+        ],
+    )
+    def get(self, request, *args, **kwargs):
+        all_users = self.get_queryset()
+
+        # Paginate the queryset
+        page = self.paginate_queryset(all_users)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # Get the start and end dates from the query parameters
+        start_date = self.request.query_params.get("start_date")
+        end_date = self.request.query_params.get("end_date")
+
+        # If start_date is provided, filter the queryset from that date onwards
+        if start_date:
+            start_date_parsed = parse_date(start_date)
+            if start_date_parsed:
+                queryset = queryset.filter(created_at__gte=start_date_parsed)
+
+        # If end_date is provided, filter the queryset up to that date
+        if end_date:
+            end_date_parsed = parse_date(end_date)
+            if end_date_parsed:
+                queryset = queryset.filter(created_at__lte=end_date_parsed)
+
+        return queryset
+
+
+
+# User-details
+
+class UserDetailView(GenericAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = CustomUsersSerializer
+    lookup_field = "slug"
+
+    def get(self, request, slug):
+        try:
+            all_user = self.get_object()
+            serializer = self.get_serializer(all_user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except CustomUser.DoesNotExist:
+            return Response(
+                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )

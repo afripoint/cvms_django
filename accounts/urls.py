@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     # AllUsersAPIView,
+    AllUsersList,
     ChangeDefaultPasswordAPIView,
     # CreateUserAPIView,
     DeactivateUerPAIView,
@@ -14,6 +15,7 @@ from .views import (
     TwoFALoginAPIView,
     UnVerifiedUsersList,
     UserCreationRequestAPIView,
+    UserDetailView,
     VerifiedUserDetailView,
     Verify2FAAPIView,
     VerifyUser,
@@ -83,5 +85,17 @@ urlpatterns = [
         "unverified-user-details/<slug:slug>/",
         VerifiedUserDetailView.as_view(),
         name="unverified-user-details",
+    ),
+    # all-users
+    path(
+        "all-users/",
+        AllUsersList.as_view(),
+        name="all-users",
+    ),
+    # user-detail
+    path(
+        "user-details/",
+        UserDetailView.as_view(),
+        name="user-details",
     ),
 ]
