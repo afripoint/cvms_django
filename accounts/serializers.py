@@ -339,7 +339,9 @@ class CustomUsersSerializer(serializers.ModelSerializer):
             "role",
             "is_active",
             "is_verified",
+            "created_at"
         )
+        read_only_fields = ("created_at", "slug",)
 
 
 class SetNewPasswordSerializer(serializers.Serializer):
