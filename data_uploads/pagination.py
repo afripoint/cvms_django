@@ -18,6 +18,8 @@ class AllUnverifiedUsersPegination(PageNumberPagination):
                     "previous": self.get_previous_link(),
                     "has_next" : True if self.get_next_link() else False,
                     "has_previous" : True if self.get_previous_link() else False,
+                    "current_page": self.page.number,  # Current page number
+                    "total_pages": self.page.paginator.num_pages,  # Total number of pages
                 },
                 "data": data,
             }
