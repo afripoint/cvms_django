@@ -14,6 +14,7 @@ from .views import (
     SetNewPasswordAPIView,
     TwoFALoginAPIView,
     UnVerifiedUsersList,
+    UnverifiedUserDetailView,
     UserCreationRequestAPIView,
     UserDetailView,
     VerifiedUserDetailView,
@@ -83,7 +84,7 @@ urlpatterns = [
     # unverified-users-details
     path(
         "unverified-user-details/<slug:slug>/",
-        VerifiedUserDetailView.as_view(),
+        UnverifiedUserDetailView.as_view(),
         name="unverified-user-details",
     ),
     # all-users
@@ -94,7 +95,7 @@ urlpatterns = [
     ),
     # user-detail
     path(
-        "user-details/",
+        "user-details/<slug:slug>/",
         UserDetailView.as_view(),
         name="user-details",
     ),
