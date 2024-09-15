@@ -1,6 +1,11 @@
 from django.http import HttpResponseRedirect, HttpResponse
+from rest_framework import generics
+from django.utils.dateparse import parse_date
+from rest_framework import filters
+from drf_yasg import openapi
 from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.generics import GenericAPIView
 import pyotp
 from django.contrib.auth.hashers import check_password
 from django.utils.encoding import DjangoUnicodeDecodeError
@@ -23,7 +28,7 @@ from datetime import timedelta
 from rest_framework import status
 from django.conf import settings
 from accounts.utils import send_admin_email, send_user_email
-from data_uploads.pagination import AllUnveriifiedUsers
+from data_uploads.pagination import AllUnverifiedUsersPegination
 from logs.models import Log
 from .serializers import (
     ChangeDefaultPassword,
@@ -290,7 +295,8 @@ class LoginAPIView(APIView):
             user = CustomUser.objects.get(email_address=email_address, is_verified=True)
         except CustomUser.DoesNotExist:
             return Response(
-                {"message": "User with this email does not exist"}, status=status.HTTP_400_BAD_REQUEST
+                {"message": "User with this email does not exist"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Check if the user is locked out
@@ -641,17 +647,17 @@ class DeactivateUerPAIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+"""
+
 # List all unverified and inactive users - Sub-admin
-class AllUsersAPIView(APIView):
+class AllVerifiedUsersList(APIView):
     # authentication_classes = [JWTAuthentication]
     # permission_classes = [IsAuthenticated]
-    pagination_class = AllUnveriifiedUsers
+    pagination_class = AllUnverifiedUsersPegination
 
     @swagger_auto_schema(
         operation_summary="This endpoint lists all unverified user",
-        operation_description="""
-        This endpoint retrieves all unverified user.        
-    """,
+        operation_description="This endpoint retrieves all unverified user.,"
     )
     def get(self, request):
         users = CustomUser.objects.filter(is_verified=False)
@@ -679,3 +685,95 @@ class AllUsersAPIView(APIView):
         }
 
         return Response(data=custom_response_data, status=status.HTTP_200_OK)
+"""
+
+
+class UnVerifiedUsersList(GenericAPIView):
+    queryset = CustomUser.objects.filter(is_verified=False)
+    serializer_class = CustomUsersSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["first_name", "email_address", "phone_number"]
+    pagination_class = AllUnverifiedUsersPegination
+
+    @swagger_auto_schema(
+        operation_summary="List all unverified users with optional date, first_name, email_address and phone_number  filters",
+        operation_description="""
+        This endpoint retrieves all unverified users. 
+        Optionally, you can filter users by their registration date by providing the following query parameters:
+
+        - **first_name**: Filters users with their first name.
+        - **email_address**: Filters users with their email_address.
+        - **phone_number**: Filters users with their phone_number.
+        - **start_date**: Filters users registered on or after this date (YYYY-MM-DD).
+        - **end_date**: Filters users registered on or before this date (YYYY-MM-DD).
+
+        Example usage:
+        ```
+        GET /api/unverified-users/?start_date=2023-01-01&end_date=2023-03-01
+        ```
+        """,
+        manual_parameters=[
+            openapi.Parameter(
+                "start_date",
+                openapi.IN_QUERY,
+                description="Filter users from this date (YYYY-MM-DD)",
+                type=openapi.TYPE_STRING,
+                format=openapi.FORMAT_DATE,
+            ),
+            openapi.Parameter(
+                "end_date",
+                openapi.IN_QUERY,
+                description="Filter users up to this date (YYYY-MM-DD)",
+                type=openapi.TYPE_STRING,
+                format=openapi.FORMAT_DATE,
+            ),
+        ]
+    )
+    def get(self, request, *args, **kwargs):
+        verified_users = self.get_queryset()
+
+        # Paginate the queryset
+        page = self.paginate_queryset(verified_users)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # Get the start and end dates from the query parameters
+        start_date = self.request.query_params.get("start_date")
+        end_date = self.request.query_params.get("end_date")
+
+        # If start_date is provided, filter the queryset from that date onwards
+        if start_date:
+            start_date_parsed = parse_date(start_date)
+            if start_date_parsed:
+                queryset = queryset.filter(created_at__gte=start_date_parsed)
+
+        # If end_date is provided, filter the queryset up to that date
+        if end_date:
+            end_date_parsed = parse_date(end_date)
+            if end_date_parsed:
+                queryset = queryset.filter(created_at__lte=end_date_parsed)
+
+        return queryset
+
+
+class VerifiedUserDetailView(GenericAPIView):
+    queryset = CustomUser.objects.filter(is_verified=False)
+    serializer_class = CustomUsersSerializer
+    lookup_field = "slug"
+
+    def get(self, request, slug):
+        try:
+            unverified_user = self.get_object()
+            serializer = self.get_serializer(unverified_user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except CustomUser.DoesNotExist:
+            return Response(
+                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+
+# throathing
