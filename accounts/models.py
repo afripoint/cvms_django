@@ -59,6 +59,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         ("male", "male"),
         ("female", "female"),
     )
+    REQUEST_STATUS = {
+        ("approved", "approved"),
+        ("declined", "declined"),
+        ("pending", "pending"),
+    }
     # ROLE_CHOICES_LIST = (
     #     ("support_level1", "support_level1"),
     #     ("support_level2", "support_level2"),
@@ -77,6 +82,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     login_attempts = models.IntegerField(default=0)
     last_login_attempt = models.DateTimeField(null=True, blank=True)
     gender = models.CharField(choices=GENDER_CHOICES_LIST, max_length=15)
+    request_status = models.CharField(
+        max_length=50, choices=REQUEST_STATUS, default="pending"
+    )
     totp_secret = models.CharField(max_length=32, blank=True, null=True)
     is_2fa_enabled = models.BooleanField(default=False)
     role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True)
@@ -147,7 +155,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         # Generate a default password if not already set
         if not self.default_password:
             self.default_password = self.generate_default_password()
-            
 
         if self.created_at and (timezone.now() - self.created_at) >= timedelta(days=90):
             # send an email to the user
