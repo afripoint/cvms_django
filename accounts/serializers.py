@@ -1,58 +1,45 @@
 from rest_framework import serializers
-from accounts.models import CustomUser
-from datetime import timedelta
+from accounts.models import CustomUser, Profile
 from django.utils.http import urlsafe_base64_decode
 from django.core.exceptions import ValidationError
-from django.utils import timezone
-from django.contrib.auth import authenticate
 import re
-
-from accounts.tokens import create_jwt_pair_for_user
 from departments.models import Command, Department, Rank, Zone
 from roles.models import Role
 
 
+# user profile
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = (
+            "rank",
+            "staff_id",
+            "command",
+            "department",
+            "zone",
+        )
+
+
 class CustomUserSerializer(serializers.ModelSerializer):
-    email_address = serializers.CharField(required=True)
-    phone_number = serializers.CharField(required=True)
-    first_name = serializers.CharField(required=True)
-    last_name = serializers.CharField(required=True)
+    profile = ProfileSerializer(read_only=True)
 
     class Meta:
         model = CustomUser
-        fields = [
+        fields = (
             "first_name",
             "last_name",
-            "email_address",
             "phone_number",
+            "email_address",
+            "gender",
+            "request_status",
+            "is_2fa_enabled",
             "role",
-            "password",
-        ]
-
-    def validate_email_address(self, value):
-        if CustomUser.objects.filter(email_address=value).exists():
-            raise serializers.ValidationError(
-                "A user with this email address already exists."
-            )
-        return value
-
-    def validate_phone_number(self, value):
-        if CustomUser.objects.filter(phone_number=value).exists():
-            raise serializers.ValidationError(
-                "A user with this phone number already exists."
-            )
-        return value
-
-    def create(self, validated_data):
-        user = CustomUser.objects.create_user(
-            email_address=validated_data["email_address"],
-            password=validated_data["password"],
-            phone_number=validated_data["phone_number"],
-            first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"],
-            role=validated_data["role"],
+            "slug",
+            "is_active",
+            "is_verified",
+            "created_at",
+            "profile",
         )
-        return user
 
 
 class ChangeDefaultPassword(serializers.ModelSerializer):
@@ -229,27 +216,12 @@ class DeactivateAdminUserSerializer(serializers.ModelSerializer):
 
 
 class UserCreationRequestSerializer(serializers.ModelSerializer):
-    command = serializers.SlugRelatedField(
-        queryset=Command.objects.all(),
-        slug_field="command_name",
-    )
-    department = serializers.SlugRelatedField(
-        queryset=Department.objects.all(),
-        slug_field="department_name",
-    )
-    rank = serializers.SlugRelatedField(
-        queryset=Rank.objects.all(),
-        slug_field="rank_level",
-    )
-    role = serializers.SlugRelatedField(
-        queryset=Role.objects.all(),
-        slug_field="role",
-    )
-    zone = serializers.SlugRelatedField(
-        queryset=Zone.objects.all(),
-        slug_field="zone",
-    )
-    # Include staff_id as a field in the serializer
+    command = serializers.CharField(max_length=50, min_length=2, required=True)
+    department = serializers.CharField(max_length=50, min_length=2, required=True)
+    rank = serializers.CharField(max_length=50, min_length=2, required=True)
+    role = serializers.CharField(max_length=50, min_length=2, required=True)
+    zone = serializers.CharField(max_length=50, min_length=2, required=True)
+
     staff_id = serializers.CharField(write_only=True, required=False)
     password = serializers.CharField(
         write_only=True, required=False, allow_blank=True, min_length=0
@@ -306,12 +278,18 @@ class UserCreationRequestSerializer(serializers.ModelSerializer):
         # Set the default password
         user.set_password(password)
         user.default_password = password
-        user.command = command
-        user.department = department
-        user.rank = rank
-        user.zone = zone
-        user.staff_id = staff_id
+
         user.save()
+
+        # Update the profile with the provided data (Profile should already exist due to the signal)
+        profile = user.profile
+        profile.command = command
+        profile.department = department
+        profile.rank = rank
+        profile.zone = zone
+        profile.staff_id = staff_id
+
+        profile.save()
 
         return user
 
@@ -337,34 +315,6 @@ class GrantAccessSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
-
-
-class CustomUsersSerializer(serializers.ModelSerializer):
-    role = serializers.StringRelatedField()
-
-    class Meta:
-        model = CustomUser
-        fields = (
-            "phone_number",
-            "first_name",
-            "last_name",
-            "email_address",
-            "slug",
-            "gender",
-            "request_status",
-            "role",
-            "is_active",
-            "is_verified",
-            "created_at",
-        )
-        read_only_fields = (
-            "created_at",
-            "slug",
-            "request_status",
-            "is_active",
-            "is_verified",
-            "created_at",
-        )
 
 
 class SetNewPasswordSerializer(serializers.Serializer):

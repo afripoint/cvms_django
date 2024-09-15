@@ -129,7 +129,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Africa/Lagos"
 
 USE_I18N = True
 
@@ -191,9 +191,9 @@ SIMPLE_JWT = {
 }
 
 # Admin email
-# ADMINS = [
-#     ("Super Administrator", "super_admin@cvms.com"),
-# ]
+ADMINS = [
+    ("Super Administrator", "super_admin@cvms.com"),
+]
 
 
 STORAGES = {
