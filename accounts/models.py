@@ -14,9 +14,6 @@ from django.contrib.auth.models import (
 )
 import pyotp
 
-from departments.models import Command, Department, Rank, Zone
-from roles.models import Role
-
 
 class MyUserManager(BaseUserManager):
     def create_user(self, email_address, password, **extra_fields):
@@ -64,16 +61,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         ("declined", "declined"),
         ("pending", "pending"),
     }
-    # ROLE_CHOICES_LIST = (
-    #     ("support_level1", "support_level1"),
-    #     ("support_level2", "support_level2"),
-    #     ("support_level3", "support_level3"),
-    #     ("accountant1", "accountant1"),
-    #     ("accountant2", "accountant2"),
-    #     ("accountant3", "accountant3"),
-    #     ("compliance", "compliance"),
-    #     ("content_creator", "content_creator"),
-    # )
+  
     phone_number = models.CharField(max_length=15, unique=True)
     first_name = models.CharField(max_length=255)
     default_password = models.CharField(max_length=50, blank=True, null=True)
@@ -87,7 +75,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     )
     totp_secret = models.CharField(max_length=32, blank=True, null=True)
     is_2fa_enabled = models.BooleanField(default=False)
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True)
+    role = models.CharField(max_length=50)
     slug = models.CharField(max_length=400, blank=True, null=True, unique=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
@@ -106,7 +94,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     class Meta:
         verbose_name = "user"
         verbose_name_plural = "users"
-        ordering = ["-email_address"]
+        ordering = ["-first_name"]
 
     def unsuccessful_login_attempt(self):
         """
@@ -177,15 +165,13 @@ class ActivationToken(models.Model):
         return f"{self.user.email_address} used the token"
 
 
-class support_level1_profile(models.Model):
-    user = models.ForeignKey(
-        CustomUser, related_name="support_level1_profiles", on_delete=models.CASCADE
-    )
-    rank = models.ForeignKey(Rank, on_delete=models.CASCADE)
+class Profile(models.Model):
+    user = models.OneToOneField(CustomUser, related_name='profile', on_delete=models.CASCADE)
+    rank = models.CharField(max_length=50)
     staff_id = models.CharField(max_length=50)
-    command = models.ForeignKey(Command, on_delete=models.CASCADE)
-    department = models.ForeignKey(Department, on_delete=models.CASCADE)
-    zone = models.ForeignKey(Zone, on_delete=models.CASCADE)
+    command = models.CharField(max_length=50)
+    department = models.CharField(max_length=50)
+    zone = models.CharField(max_length=50)
     slug = models.CharField(max_length=300, unique=True, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

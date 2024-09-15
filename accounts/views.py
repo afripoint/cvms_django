@@ -1,5 +1,7 @@
 from django.http import HttpResponseRedirect, HttpResponse
 from smtplib import SMTPException
+from django.db.models import DateField
+from django.db.models.functions import Cast
 import logging
 from rest_framework import generics
 from django.utils.dateparse import parse_date
@@ -35,7 +37,7 @@ from logs.models import Log
 from .serializers import (
     ChangeDefaultPassword,
     CustomUserSerializer,
-    CustomUsersSerializer,
+    # CustomUsersSerializer,
     DeactivateAdminUserSerializer,
     ForgetPasswordEmailRequestSerializer,
     GrantAccessSerializer,
@@ -113,7 +115,14 @@ class GrantAccessAPIView(APIView):
     )
     def post(self, request, slug):
         # get the user to verify
-        user = get_object_or_404(CustomUser, slug=slug)
+        try:
+            user = CustomUser.objects.filter(slug=slug)
+        except Exception as e:
+            response = {
+                "message": f"{e}"
+            }
+            return Response(data=response, status=status.HTTP_404_NOT_FOUND)
+        
         serializer = GrantAccessSerializer(user, data=request.data)
         if serializer.is_valid():
             user = serializer.save()
@@ -672,8 +681,8 @@ class DeactivateUerPAIView(APIView):
 
 # unveried users list
 class UnVerifiedUsersList(GenericAPIView):
-    queryset = CustomUser.objects.filter(is_verified=False)
-    serializer_class = CustomUsersSerializer
+    queryset = CustomUser.objects.filter(is_verified=False).select_related('profile')
+    serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ["first_name", "email_address", "phone_number"]
     pagination_class = AllUnverifiedUsersPegination
@@ -743,8 +752,8 @@ class UnVerifiedUsersList(GenericAPIView):
 
 
 class UnverifiedUserDetailView(GenericAPIView):
-    queryset = CustomUser.objects.filter(is_verified=False)
-    serializer_class = CustomUsersSerializer
+    queryset = CustomUser.objects.filter(is_verified=False).select_related('profile')
+    serializer_class = CustomUserSerializer
     lookup_field = "slug"
 
     def get(self, request, slug):
@@ -763,13 +772,9 @@ class UnverifiedUserDetailView(GenericAPIView):
             )
 
 
-# throathing meaning 
-
-
-
 class AllUsersList(GenericAPIView):
-    queryset = CustomUser.objects.all()
-    serializer_class = CustomUsersSerializer
+    queryset = CustomUser.objects.all().select_related('profile')
+    serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ["first_name", "email_address", "phone_number"]
     pagination_class = AllUsersPegination
@@ -819,6 +824,9 @@ class AllUsersList(GenericAPIView):
     def get_queryset(self):
         queryset = super().get_queryset()
 
+        # Cast created_at to a date to ignore time when filtering
+        queryset = queryset.annotate(created_date=Cast('created_at', DateField()))
+
         # Get the start and end dates from the query parameters
         start_date = self.request.query_params.get("start_date")
         end_date = self.request.query_params.get("end_date")
@@ -827,23 +835,22 @@ class AllUsersList(GenericAPIView):
         if start_date:
             start_date_parsed = parse_date(start_date)
             if start_date_parsed:
-                queryset = queryset.filter(created_at__gte=start_date_parsed)
+                queryset = queryset.filter(created_date__gte=start_date_parsed)
 
         # If end_date is provided, filter the queryset up to that date
         if end_date:
             end_date_parsed = parse_date(end_date)
             if end_date_parsed:
-                queryset = queryset.filter(created_at__lte=end_date_parsed)
+                queryset = queryset.filter(created_date__lte=end_date_parsed)
 
         return queryset
 
 
 
 # User-details
-
 class UserDetailView(GenericAPIView):
-    queryset = CustomUser.objects.all()
-    serializer_class = CustomUsersSerializer
+    queryset = CustomUser.objects.all().select_related('profile')
+    serializer_class = CustomUserSerializer
     lookup_field = "slug"
 
     def get(self, request, slug):

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from accounts.models import CustomUser
+from accounts.models import CustomUser, Profile
 
 
 class CustomUserAmin(BaseUserAdmin):
@@ -39,4 +39,12 @@ class CustomUserAmin(BaseUserAdmin):
     )
 
 
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'staff_id', 'command', 'created_at', 'updated_at', )
+    list_display_links = ("staff_id",)
+
+
+
 admin.site.register(CustomUser, CustomUserAmin)
+
