@@ -192,7 +192,7 @@ SIMPLE_JWT = {
 
 # Admin email
 ADMINS = [
-    # ("Super Administrator", "super_admin@cvms.com"),
+    ("Super Administrator", "super_admin@cvms.com"),
 ]
 
 

@@ -121,7 +121,7 @@ class GrantAccessAPIView(APIView):
     def post(self, request, slug):
         # get the user to verify
         try:
-            user = CustomUser.objects.filter(slug=slug)
+            user = CustomUser.objects.get(slug=slug)
         except Exception as e:
             response = {"message": f"{e}"}
             return Response(data=response, status=status.HTTP_404_NOT_FOUND)
