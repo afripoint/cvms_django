@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.core.files.storage import FileSystemStorage
 import csv
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -55,6 +56,15 @@ class UploadFileAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Create a FileSystemStorage instance
+        fs = FileSystemStorage(location=self.storage_location)
+
+        # Save the file to the uploads directory
+        filename = fs.save(file.name, file)
+
+        # Generate the file's URL to be accessed from the frontend
+        file_url = fs.url(filename)
+
         # Check for duplicate files by name or content
         # if is_duplicate(file) and not overwrite:
         #     return Response(
@@ -82,7 +92,15 @@ class UploadFileAPIView(APIView):
             )
         if "error" in result:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        return Response(result, status=status.HTTP_200_OK)
+        # Return the result with the file URL
+        return Response(
+            {
+                "message": "File processed and saved successfully.",
+                "file_url": file_url,  # Provide the file URL for frontend
+                "result": result,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class GetAllVinAPIView(APIView):

@@ -73,7 +73,7 @@ urlpatterns = [
     ),
     # grant access by thee super user
     path(
-        "grant-access/<str:slug>/",
+        "grant-access/<slug:slug>/",
         GrantAccessAPIView.as_view(),
         name="grant-access",
     ),
