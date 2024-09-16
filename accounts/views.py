@@ -156,9 +156,9 @@ class GrantAccessAPIView(APIView):
                 subject = "Activate your account"
                 message = (
                     f"Dear {first_name} {last_name},\n\n"
-                    f"Your account has been verified and granted access as {role}. "
-                    f"Please click on the link to change your password from the default one: {activation_link}. "
-                    f"Your default password is: {default_password}."
+                    f"Your account has been verified and granted access as {role}"
+                    f"Please click on the link to change your password from the default one: {activation_link}"
+                    f"Your default password is: {default_password}"
                 )
             else:
                 # Email content for declined users
@@ -270,7 +270,7 @@ class ChangeDefaultPasswordAPIView(APIView):
                 user.save()
 
                 return Response(
-                    {"success": "Password updated successfully"},
+                    {"message": "Password updated successfully"},
                     status=status.HTTP_200_OK,
                 )
 
@@ -628,7 +628,7 @@ class ResetPasswordAPIView(APIView):
         )
         if serializer.is_valid():
             serializer.save()
-            response = {"success": "Password updated successfully"}
+            response = {"message": "Password updated successfully"}
             return Response(data=response, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -676,7 +676,7 @@ class DeactivateUerPAIView(APIView):
 
             # call the deactivation logs here
 
-            return Response({"success": True}, status=status.HTTP_200_OK)
+            return Response({"message": True}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -724,15 +724,18 @@ class UnVerifiedUsersList(GenericAPIView):
         ],
     )
     def get(self, request, *args, **kwargs):
-        verified_users = self.get_queryset()
+        unverified_users = self.get_queryset()
 
         # Paginate the queryset
-        page = self.paginate_queryset(verified_users)
+        page = self.paginate_queryset(unverified_users)
         serializer = self.get_serializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
     def get_queryset(self):
         queryset = super().get_queryset()
+
+         # Cast created_at to a date to ignore time when filtering
+        queryset = queryset.annotate(created_date=Cast("created_at", DateField()))
 
         # Get the start and end dates from the query parameters
         start_date = self.request.query_params.get("start_date")
@@ -742,13 +745,13 @@ class UnVerifiedUsersList(GenericAPIView):
         if start_date:
             start_date_parsed = parse_date(start_date)
             if start_date_parsed:
-                queryset = queryset.filter(created_at__gte=start_date_parsed)
+                queryset = queryset.filter(created_date__gte=start_date_parsed)
 
         # If end_date is provided, filter the queryset up to that date
         if end_date:
             end_date_parsed = parse_date(end_date)
             if end_date_parsed:
-                queryset = queryset.filter(created_at__lte=end_date_parsed)
+                queryset = queryset.filter(created_date__lte=end_date_parsed)
 
         return queryset
 
