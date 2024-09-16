@@ -32,7 +32,11 @@ from datetime import timedelta
 from rest_framework import status
 from django.conf import settings
 from accounts.utils import send_admin_email, send_user_email
-from data_uploads.pagination import AllUnverifiedUsersPegination, AllUsersPegination
+from data_uploads.pagination import (
+    AllUnverifiedUsersPegination,
+    AllUsersPegination,
+    ProfilesPegination,
+)
 from logs.models import Log
 from .serializers import (
     ChangeDefaultPassword,
@@ -42,13 +46,14 @@ from .serializers import (
     ForgetPasswordEmailRequestSerializer,
     GrantAccessSerializer,
     LoginSerializer,
+    ProfileSerializer,
     ResetPasswordSerializer,
     SetNewPasswordSerializer,
     TwoFASerializer,
     UserCreationRequestSerializer,
     Verify2FASerializer,
 )
-from .models import ActivationToken, CustomUser
+from .models import ActivationToken, CustomUser, Profile
 from rest_framework.permissions import IsAuthenticated
 
 
@@ -118,11 +123,9 @@ class GrantAccessAPIView(APIView):
         try:
             user = CustomUser.objects.filter(slug=slug)
         except Exception as e:
-            response = {
-                "message": f"{e}"
-            }
+            response = {"message": f"{e}"}
             return Response(data=response, status=status.HTTP_404_NOT_FOUND)
-        
+
         serializer = GrantAccessSerializer(user, data=request.data)
         if serializer.is_valid():
             user = serializer.save()
@@ -200,8 +203,8 @@ class GrantAccessAPIView(APIView):
 
 class VerifyUser(APIView):
     @swagger_auto_schema(
-        operation_summary="This is verifying if the token is valid for a user",
-        operation_description="This endpoint checked the validity of the token.",
+        operation_summary="This is verifying if the token is valid for a new admin user",
+        operation_description="This endpoint checked the validity of the token for an admin user.",
     )
     def get(self, request, uidb64, token):
         try:
@@ -211,19 +214,19 @@ class VerifyUser(APIView):
             # check if the token has been used
             token_generator = PasswordResetTokenGenerator()
             if not token_generator.check_token(user, token):
-                return HttpResponse("Invalid Token")
-                # return HttpResponseRedirect(
-                #     "https://cvms-admin.com/change-password?status=invalid"
-                # )
-            return HttpResponse(
-                "Token Valid and successful, redirecting to the change password page"
-            )
-            # return HttpResponseRedirect(
-            #     f"https://cvms-admin.com/change-password?uidb64={uidb64}&token={token}&status=valid"
+                # return HttpResponse("Invalid Token")
+                return HttpResponseRedirect(
+                    "https://cvms-admin.vercel.app/#/auth/update-user-password?status=invalid"
+                )
+            # return HttpResponse(
+            #     "Token Valid and successful, redirecting to the change password page"
             # )
+            return HttpResponseRedirect(
+                f"https://cvms-admin.vercel.app/#/auth/update-user-password?uidb64={uidb64}&token={token}&status=valid"
+            )
 
         except Exception as e:
-            return HttpResponse("Invalid token")
+            return HttpResponse("https://cvms-admin.vercel.app/#/auth/update-user-password?status=invalid")
             # return HttpResponseRedirect(
             #     "https://cvms-admin.com/change-password?status=invalid"
             # )
@@ -239,7 +242,6 @@ class ChangeDefaultPasswordAPIView(APIView):
         data = request.data
         serializer = ChangeDefaultPassword(data=request.data)
 
-        # import pdb; pdb.set_trace()
         if serializer.is_valid():
             validated_data = serializer.save()
 
@@ -544,7 +546,7 @@ class PasswordTokenCheck(APIView):
                 # Redirect to the frontend URL with an invalid token status
                 # return Response({"error": "Token has been used"})
                 return HttpResponseRedirect(
-                    "https://parts-demo.vercel.app/new-password?status=invalid"
+                    "https://cvms-admin.vercel.app/#/auth/reset-password?status=invalid"
                 )
             # return Response(
             #     {
@@ -556,23 +558,23 @@ class PasswordTokenCheck(APIView):
             #     status=status.HTTP_200_OK,
             # )
 
-            return HttpResponse(
-                "Token Valid and successful, redirecting to the change password page"
-            )
-            # return HttpResponseRedirect(
-            #     f"https://parts-demo.vercel.app/new-password?uidb64={uidb64}&token={token}&status=valid"
+            # return HttpResponse(
+            #     "Token Valid and successful, redirecting to the change password page"
             # )
+            return HttpResponseRedirect(
+                f"https://cvms-admin.vercel.app/#/auth/reset-password?uidb64={uidb64}&token={token}&status=valid"
+            )
 
         # except DjangoUnicodeDecodeError as e:
         #     return Response({"error": "Tokeen is not valid, please request a new one"})
         except DjangoUnicodeDecodeError as e:
             # Redirect to the frontend URL with an invalid token status
-            return HttpResponse(
-                "Token invalid, please cheeck tokeen; redirect to login screen"
-            )
-            # return HttpResponseRedirect(
-            #     "https://parts-demo.vercel.app/new-password?status=invalid"
+            # return HttpResponse(
+            #     "Token invalid, please cheeck tokeen; redirect to login screen"
             # )
+            return HttpResponseRedirect(
+                "https://cvms-admin.vercel.app/#/auth/reset-password?status=invalid"
+            )
 
 
 class SetNewPasswordAPIView(APIView):
@@ -681,7 +683,7 @@ class DeactivateUerPAIView(APIView):
 
 # unveried users list
 class UnVerifiedUsersList(GenericAPIView):
-    queryset = CustomUser.objects.filter(is_verified=False).select_related('profile')
+    queryset = CustomUser.objects.filter(is_verified=False).select_related("profile")
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ["first_name", "email_address", "phone_number"]
@@ -752,7 +754,7 @@ class UnVerifiedUsersList(GenericAPIView):
 
 
 class UnverifiedUserDetailView(GenericAPIView):
-    queryset = CustomUser.objects.filter(is_verified=False).select_related('profile')
+    queryset = CustomUser.objects.filter(is_verified=False).select_related("profile")
     serializer_class = CustomUserSerializer
     lookup_field = "slug"
 
@@ -762,7 +764,7 @@ class UnverifiedUserDetailView(GenericAPIView):
             serializer = self.get_serializer(unverified_user)
             response = {
                 "message": "Successfully fetched user details",
-                "data" : serializer.data,
+                "data": serializer.data,
             }
             return Response(data=response, status=status.HTTP_200_OK)
 
@@ -773,7 +775,7 @@ class UnverifiedUserDetailView(GenericAPIView):
 
 
 class AllUsersList(GenericAPIView):
-    queryset = CustomUser.objects.all().select_related('profile')
+    queryset = CustomUser.objects.all().select_related("profile")
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ["first_name", "email_address", "phone_number"]
@@ -825,7 +827,7 @@ class AllUsersList(GenericAPIView):
         queryset = super().get_queryset()
 
         # Cast created_at to a date to ignore time when filtering
-        queryset = queryset.annotate(created_date=Cast('created_at', DateField()))
+        queryset = queryset.annotate(created_date=Cast("created_at", DateField()))
 
         # Get the start and end dates from the query parameters
         start_date = self.request.query_params.get("start_date")
@@ -846,10 +848,9 @@ class AllUsersList(GenericAPIView):
         return queryset
 
 
-
 # User-details
 class UserDetailView(GenericAPIView):
-    queryset = CustomUser.objects.all().select_related('profile')
+    queryset = CustomUser.objects.all().select_related("profile")
     serializer_class = CustomUserSerializer
     lookup_field = "slug"
 
@@ -859,7 +860,7 @@ class UserDetailView(GenericAPIView):
             serializer = self.get_serializer(all_user)
             response = {
                 "message": "Successfully fetched user details",
-                "data" : serializer.data,
+                "data": serializer.data,
             }
             return Response(data=response, status=status.HTTP_200_OK)
 
@@ -867,3 +868,79 @@ class UserDetailView(GenericAPIView):
             return Response(
                 {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
             )
+
+
+# all user profile
+class AllProfileView(GenericAPIView):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["rank", "department", "staff_id", "command", "zone"]
+    pagination_class = ProfilesPegination
+
+    @swagger_auto_schema(
+        operation_summary="List all profile with optional search filters",
+        operation_description="""
+        This endpoint retrieves all users. 
+        Optionally, you can filter search by their rank, zone, department, by the following query parameters:
+
+        - **rank**: Filters users with their rank.
+        - **department**: Filters users with their department.
+        - **zone**: Filters users with their zone.
+        - **command**: Filters users with their command.
+        - **staff_d**: Filters users with their staff_id.
+.
+
+        Example usage:
+        ```
+        GET /api/unverified-users/?department=HR/
+        ```
+        """,
+    )
+    def get(self, request, *args, **kwargs):
+        profiles = self.get_queryset()
+
+        # Paginate the queryset
+        page = self.paginate_queryset(profiles)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
+
+
+class AllProfileDetailAPIView(APIView):
+    @swagger_auto_schema(
+        operation_summary="profile detail API enpoint",
+        operation_description="""
+        This endpoint retrieves a single user profile.
+        """,
+    )
+    def get(self, request, slug):
+        user_profile = get_object_or_404(Profile, slug=slug)
+        serializer = ProfileSerializer(user_profile)
+        response = {
+            "message": "successfully fetch user profile",
+            "data": serializer.data,
+        }
+
+        return Response(data=response, status=status.HTTP_200_OK)
+
+
+class UserProfileUpdateAPIView(APIView):
+    @swagger_auto_schema(
+        operation_summary="profile update API enpoint",
+        operation_description="""
+        This endpoint retrieves and update a user profile.
+        """,
+        request_body=ProfileSerializer,
+    )
+    def patch(self, request, slug):
+        user_profile = get_object_or_404(Profile, slug=slug)
+        serializer = ProfileSerializer(user_profile, data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            response = {
+                "message": "profile successfully updated",
+                "data": serializer.data,
+            }
+            return Response(data=response, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
