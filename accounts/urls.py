@@ -1,6 +1,8 @@
 from django.urls import path
 from .views import (
     # AllUsersAPIView,
+    AllProfileDetailAPIView,
+    AllProfileView,
     AllUsersList,
     ChangeDefaultPasswordAPIView,
     # CreateUserAPIView,
@@ -17,6 +19,7 @@ from .views import (
     UnverifiedUserDetailView,
     UserCreationRequestAPIView,
     UserDetailView,
+    UserProfileUpdateAPIView,
     Verify2FAAPIView,
     VerifyUser,
     LoginAPIView,
@@ -24,7 +27,7 @@ from .views import (
 
 
 urlpatterns = [
-    # path("create-sub-admin/", CreateUserAPIView.as_view(), name="create-sub-admin"),
+    # veriify an admin user and redirect to update password view
     path(
         "verify-account/<str:uidb64>/<str:token>/",
         VerifyUser.as_view(),
@@ -97,5 +100,23 @@ urlpatterns = [
         "user-details/<slug:slug>/",
         UserDetailView.as_view(),
         name="user-details",
+    ),
+    # users-profile
+    path(
+        "user-profiles/",
+        AllProfileView.as_view(),
+        name="users-profiles",
+    ),
+    # users-profile-detail
+    path(
+        "user-profile-detail/<slug:slug>/",
+        AllProfileDetailAPIView.as_view(),
+        name="users-profile-detail",
+    ),
+    # users-profile-update
+    path(
+        "user-profile-update/<slug:slug>/",
+        UserProfileUpdateAPIView.as_view(),
+        name="users-profile-update",
     ),
 ]

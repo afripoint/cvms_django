@@ -9,15 +9,20 @@ from roles.models import Role
 
 # user profile
 class ProfileSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
     class Meta:
         model = Profile
         fields = (
+            "user",
             "rank",
             "staff_id",
             "command",
             "department",
             "zone",
+            "slug",
+            "created_at"
         )
+        read_only_fields  = ('slug', 'created_at', 'user')
 
 
 class CustomUserSerializer(serializers.ModelSerializer):
