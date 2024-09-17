@@ -181,6 +181,12 @@ EMAIL_HOST_USER = "33e55df66493fc"
 EMAIL_HOST_PASSWORD = "11db47a90c5e55"
 
 
+# REST_FRAMEWORK = {
+#     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+#     "PAGE_SIZE": 5,
+# }
+
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=2),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
