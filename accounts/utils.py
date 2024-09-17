@@ -1,5 +1,14 @@
 import threading
 from django.core.mail import send_mail, mail_admins
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+
+
+
+# custom token geneerator that expires
+class TokenGenerator(PasswordResetTokenGenerator):
+    def _make_hash_value(self, user, timestamp):
+        return f"{user.pk}{timestamp}{user.is_active}"
+
 
 
 # this makes the email delivery very fast
@@ -31,3 +40,5 @@ def send_admin_email(subject, message):
 
 def send_user_email(subject, message, recipient_list, from_email):
     EmailThread(subject, message, recipient_list, from_email).start()
+
+

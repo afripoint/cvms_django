@@ -56,7 +56,7 @@ urlpatterns = [
     path(
         "forgot-password/",
         SetNewPasswordAPIView.as_view(),
-        name="set-password-complete",
+        name="forgot-password/",
     ),
     path("logout/", LogoutAPIView.as_view(), name="logout"),
     # deactivated an a user
