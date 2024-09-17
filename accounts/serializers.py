@@ -1,15 +1,20 @@
 from rest_framework import serializers
-from accounts.models import CustomUser, Profile
+from accounts.models import CustomUser, PasswordResetToken, Profile
+from django.utils import timezone
 from django.utils.http import urlsafe_base64_decode
 from django.core.exceptions import ValidationError
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 import re
+from accounts.utils import TokenGenerator
 from departments.models import Command, Department, Rank, Zone
 from roles.models import Role
+
 
 
 # user profile
 class ProfileSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField()
+
     class Meta:
         model = Profile
         fields = (
@@ -20,9 +25,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             "department",
             "zone",
             "slug",
-            "created_at"
+            "created_at",
         )
-        read_only_fields  = ('slug', 'created_at', 'user')
+        read_only_fields = ("slug", "created_at", "user")
 
 
 class CustomUserSerializer(serializers.ModelSerializer):
@@ -323,18 +328,12 @@ class GrantAccessSerializer(serializers.ModelSerializer):
 
 
 class SetNewPasswordSerializer(serializers.Serializer):
-    password = serializers.CharField(min_length=8, write_only=True)
-    confirm_password = serializers.CharField(min_length=8, write_only=True)
-    token = serializers.CharField(min_length=5, write_only=True)
-    uidb64 = serializers.CharField(min_length=5, write_only=True)
-
-    class Meta:
-        fields = (
-            "password",
-            "confirm_password",
-            "token",
-            "uidb64",
-        )
+    password = serializers.CharField(min_length=8, write_only=True, required=True)
+    confirm_password = serializers.CharField(
+        min_length=8, write_only=True, required=True
+    )
+    token = serializers.CharField(write_only=True, required=True)
+    uidb64 = serializers.CharField(write_only=True, required=True)
 
     def validate_password(self, value):
         if not re.search(r"[A-Z]", value):
@@ -351,8 +350,10 @@ class SetNewPasswordSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         password = attrs.get("password", "").strip()
-        confirm_password = attrs.pop("confirm_password", "")
+        confirm_password = attrs.get("confirm_password", "").strip()
 
         if password != confirm_password:
-            raise ValidationError("Password do not match")
+            raise serializers.ValidationError("Passwords do not match.")
+        
+        # Assuming token and uidb64 validation is handled in the view
         return attrs

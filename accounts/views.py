@@ -1,6 +1,7 @@
 from django.http import HttpResponseRedirect, HttpResponse
 from smtplib import SMTPException
 from django.db.models import DateField
+from django.core.exceptions import ValidationError
 from django.db.models.functions import Cast
 import logging
 from rest_framework import generics
@@ -31,7 +32,7 @@ from django.urls import reverse
 from datetime import timedelta
 from rest_framework import status
 from django.conf import settings
-from accounts.utils import send_admin_email, send_user_email
+from accounts.utils import TokenGenerator, send_admin_email, send_user_email
 from data_uploads.pagination import (
     AllUnverifiedUsersPegination,
     AllUsersPegination,
@@ -53,7 +54,7 @@ from .serializers import (
     UserCreationRequestSerializer,
     Verify2FASerializer,
 )
-from .models import ActivationToken, CustomUser, Profile
+from .models import ActivationToken, CustomUser, PasswordResetToken, Profile
 from rest_framework.permissions import IsAuthenticated
 
 
@@ -216,7 +217,8 @@ class VerifyUser(APIView):
             if not token_generator.check_token(user, token):
                 # return HttpResponse("Invalid Token")
                 return HttpResponseRedirect(
-                    "https://cvms-admin.vercel.app/#/auth/update-user-password?status=invalid"
+                    "https://cvms-admin.vercel.app/#/auth/update-user-password?status=invalid",
+                    status=400,
                 )
             # return HttpResponse(
             #     "Token Valid and successful, redirecting to the change password page"
@@ -226,7 +228,10 @@ class VerifyUser(APIView):
             )
 
         except Exception as e:
-            return HttpResponse("https://cvms-admin.vercel.app/#/auth/update-user-password?status=invalid")
+            return HttpResponse(
+                "https://cvms-admin.vercel.app/#/auth/update-user-password?status=invalid",
+                status=400,
+            )
             # return HttpResponseRedirect(
             #     "https://cvms-admin.com/change-password?status=invalid"
             # )
@@ -477,8 +482,16 @@ class ForgetPasswordAPIView(APIView):
 
             # Generate activation token
             uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token_generator = PasswordResetTokenGenerator()
-            token = token_generator.make_token(user)
+            generate_token = TokenGenerator()
+            token = generate_token.make_token(user)
+            expired_at = timezone.now() + timezone.timedelta(hours=1)
+
+            # create the token
+            PasswordResetToken.objects.create(
+                user=user,
+                token=token,
+                expired_at=expired_at,
+            )
 
             # Construct activation link
             activation_link = request.build_absolute_uri(
@@ -536,21 +549,27 @@ class ForgetPasswordAPIView(APIView):
 
 class PasswordTokenCheck(APIView):
     def get(self, request, uidb64, token):
+        # import pdb; pdb.set_trace()
         try:
             uid = urlsafe_base64_decode(uidb64).decode()
+
             user = CustomUser.objects.get(pk=uid)
 
             # check if the token has been used
             token_generator = PasswordResetTokenGenerator()
+
             if not token_generator.check_token(user, token):
                 # Redirect to the frontend URL with an invalid token status
-                # return Response({"error": "Token has been used"})
-                return HttpResponseRedirect(
-                    "https://cvms-admin.vercel.app/#/auth/reset-password?status=invalid"
+                return Response(
+                    {"error": "Token has been used"}, status=status.HTTP_400_BAD_REQUEST
                 )
+                # return HttpResponseRedirect(
+                #     "https://cvms-admin.vercel.app/#/auth/reset-password?status=invalid",
+                #     status=400,
+                # )
             # return Response(
             #     {
-            #         "success": True,
+            #         "message": True,
             #         "messge": "Credentials valid",
             #         "uidb64": uidb64,
             #         "token": token,
@@ -573,41 +592,78 @@ class PasswordTokenCheck(APIView):
             #     "Token invalid, please cheeck tokeen; redirect to login screen"
             # )
             return HttpResponseRedirect(
-                "https://cvms-admin.vercel.app/#/auth/reset-password?status=invalid"
+                "https://cvms-admin.vercel.app/#/auth/reset-password?status=invalid",
+                status=400,
             )
 
 
 class SetNewPasswordAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This is responsible for setting new password when password is forgotten",
-        operation_description="This endpoint set new password when password is forgotten.",
+        operation_summary="This endpoint is responsible for resetting the user's password if he forgets",
+        operation_description="""
+    This endpoint validates and updates the user's password. The password must meet the following requirements:
+    
+    - **At least one uppercase letter** (A-Z)
+    - **At least one digit** (0-9)
+    - **At least one special character** from the set: `!@#$%^&*()-_=+{};:,<.>`
+    
+    If these conditions are not met, an error message will be returned. 
+    """,
         request_body=SetNewPasswordSerializer,
     )
     def patch(self, request):
-        serializer = SetNewPasswordSerializer(data=request.POST)
+        serializer = SetNewPasswordSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            try:
-                token = serializer.validated_data.get("token")
-                uidb64 = serializer.validated_data.get("uidb64")
+            password = serializer.validated_data["password"]
+            token = serializer.validated_data["token"]
+            uidb64 = serializer.validated_data["uidb64"]
 
+            try:
                 uid = urlsafe_base64_decode(uidb64).decode()
                 user = CustomUser.objects.get(pk=uid)
+            except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+                return Response(
+                    {"error": "Invalid UID or user not found."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-                # check if the token has been used
-                token_generator = PasswordResetTokenGenerator()
+            try:
+                reset_token = PasswordResetToken.objects.get(user=user, token=token)
+                if reset_token.is_expired():
+                    return Response(
+                        {"error": "Token has expired."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if reset_token.used:
+                    return Response(
+                        {"error": "Token has already been used."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # Validate token
+                token_generator = TokenGenerator()
                 if not token_generator.check_token(user, token):
-                    return Response({"error": "Token has been used"})
+                    return Response(
+                        {"error": "Invalid token for this user."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-                # Update user's password
-                password = serializer.validated_data.get("password")
+                # Set new password and mark token as used
                 user.set_password(password)
                 user.save()
-            except:
+                reset_token.used = True
+                reset_token.save()
+
                 return Response(
-                    {"success": "Password updated successfully"},
+                    {"message": "Password updated successfully."},
                     status=status.HTTP_200_OK,
                 )
+
+            except PasswordResetToken.DoesNotExist:
+                return Response(
+                    {"error": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST
+                )
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -700,6 +756,7 @@ class UnVerifiedUsersList(GenericAPIView):
         - **phone_number**: Filters users with their phone_number.
         - **start_date**: Filters users registered on or after this date (YYYY-MM-DD).
         - **end_date**: Filters users registered on or before this date (YYYY-MM-DD).
+         - **request_status**: Filters users by request status (pending, approved, or declined).
 
         Example usage:
         ```
@@ -721,6 +778,12 @@ class UnVerifiedUsersList(GenericAPIView):
                 type=openapi.TYPE_STRING,
                 format=openapi.FORMAT_DATE,
             ),
+             openapi.Parameter(
+                "request_status",
+                openapi.IN_QUERY,
+                description="Filter users by request status (pending, approved, or declined)",
+                type=openapi.TYPE_STRING,
+            ),
         ],
     )
     def get(self, request, *args, **kwargs):
@@ -734,12 +797,13 @@ class UnVerifiedUsersList(GenericAPIView):
     def get_queryset(self):
         queryset = super().get_queryset()
 
-         # Cast created_at to a date to ignore time when filtering
+        # Cast created_at to a date to ignore time when filtering
         queryset = queryset.annotate(created_date=Cast("created_at", DateField()))
 
         # Get the start and end dates from the query parameters
         start_date = self.request.query_params.get("start_date")
         end_date = self.request.query_params.get("end_date")
+        request_status = self.request.query_params.get("request_status")
 
         # If start_date is provided, filter the queryset from that date onwards
         if start_date:
@@ -752,6 +816,11 @@ class UnVerifiedUsersList(GenericAPIView):
             end_date_parsed = parse_date(end_date)
             if end_date_parsed:
                 queryset = queryset.filter(created_date__lte=end_date_parsed)
+
+
+        # Filter by request_status if provided
+        if request_status:
+            queryset = queryset.filter(request_status=request_status)
 
         return queryset
 
