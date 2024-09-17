@@ -15,8 +15,8 @@ from .views import (
     ResetPasswordAPIView,
     SetNewPasswordAPIView,
     TwoFALoginAPIView,
-    UnVerifiedUsersList,
-    UnverifiedUserDetailView,
+    # UnVerifiedUsersList,
+    # UnverifiedUserDetailView,
     UserCreationRequestAPIView,
     UserDetailView,
     UserProfileUpdateAPIView,
@@ -78,17 +78,17 @@ urlpatterns = [
         name="grant-access",
     ),
     # unverified-users
-    path(
-        "unverified-users/",
-        UnVerifiedUsersList.as_view(),
-        name="unverified-user",
-    ),
+    # path(
+    #     "unverified-users/",
+    #     UnVerifiedUsersList.as_view(),
+    #     name="unverified-user",
+    # ),
     # unverified-users-details
-    path(
-        "unverified-user-details/<slug:slug>/",
-        UnverifiedUserDetailView.as_view(),
-        name="unverified-user-details",
-    ),
+    # path(
+    #     "unverified-user-details/<slug:slug>/",
+    #     UnverifiedUserDetailView.as_view(),
+    #     name="unverified-user-details",
+    # ),
     # all-users
     path(
         "all-users/",

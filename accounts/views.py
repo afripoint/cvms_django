@@ -18,9 +18,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.filters import SearchFilter, OrderingFilter
 from django.core.mail import send_mail
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
+from accounts.filters import CustomUserFilter
 from accounts.tokens import create_jwt_pair_for_user
 from django.utils import timezone
 from django.contrib.auth.tokens import default_token_generator
@@ -34,10 +36,10 @@ from rest_framework import status
 from django.conf import settings
 from accounts.utils import TokenGenerator, send_admin_email, send_user_email
 from data_uploads.pagination import (
-    AllUnverifiedUsersPegination,
-    AllUsersPegination,
+    AllUsersPagination,
     ProfilesPegination,
 )
+from django_filters.rest_framework import DjangoFilterBackend
 from logs.models import Log
 from .serializers import (
     ChangeDefaultPassword,
@@ -738,17 +740,17 @@ class DeactivateUerPAIView(APIView):
 
 
 # unveried users list
-class UnVerifiedUsersList(GenericAPIView):
-    queryset = CustomUser.objects.filter(is_verified=False).select_related("profile")
+class AllUsersList(generics.ListAPIView):
+    queryset = CustomUser.objects.all().select_related("profile")
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter]
-    search_fields = ["first_name", "email_address", "phone_number"]
-    pagination_class = AllUnverifiedUsersPegination
+    search_fields = ["=first_name", "=email_address", "phone_number"]
+    pagination_class = AllUsersPagination
 
     @swagger_auto_schema(
-        operation_summary="List all unverified users with optional date, first_name, email_address and phone_number  filters",
+        operation_summary="List all users with optional date, first_name, email_address and phone_number  filters",
         operation_description="""
-        This endpoint retrieves all unverified users. 
+        This endpoint retrieves all users. 
         Optionally, you can filter users by their registration date by providing the following query parameters:
 
         - **first_name**: Filters users with their first name.
@@ -760,7 +762,7 @@ class UnVerifiedUsersList(GenericAPIView):
 
         Example usage:
         ```
-        GET /api/unverified-users/?start_date=2023-01-01&end_date=2023-03-01
+        GET /api/all-users/?start_date=2023-01-01&end_date=2023-03-01
         ```
         """,
         manual_parameters=[
@@ -786,13 +788,6 @@ class UnVerifiedUsersList(GenericAPIView):
             ),
         ],
     )
-    def get(self, request, *args, **kwargs):
-        unverified_users = self.get_queryset()
-
-        # Paginate the queryset
-        page = self.paginate_queryset(unverified_users)
-        serializer = self.get_serializer(page, many=True)
-        return self.get_paginated_response(serializer.data)
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -824,100 +819,6 @@ class UnVerifiedUsersList(GenericAPIView):
 
         return queryset
 
-
-class UnverifiedUserDetailView(GenericAPIView):
-    queryset = CustomUser.objects.filter(is_verified=False).select_related("profile")
-    serializer_class = CustomUserSerializer
-    lookup_field = "slug"
-
-    def get(self, request, slug):
-        try:
-            unverified_user = self.get_object()
-            serializer = self.get_serializer(unverified_user)
-            response = {
-                "message": "Successfully fetched user details",
-                "data": serializer.data,
-            }
-            return Response(data=response, status=status.HTTP_200_OK)
-
-        except CustomUser.DoesNotExist:
-            return Response(
-                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-
-
-class AllUsersList(GenericAPIView):
-    queryset = CustomUser.objects.all().select_related("profile")
-    serializer_class = CustomUserSerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ["first_name", "email_address", "phone_number"]
-    pagination_class = AllUsersPegination
-
-    @swagger_auto_schema(
-        operation_summary="List all users with optional date, first_name, email_address and phone_number  filters",
-        operation_description="""
-        This endpoint retrieves all users. 
-        Optionally, you can filter users by their registration date by providing the following query parameters:
-
-        - **first_name**: Filters users with their first name.
-        - **email_address**: Filters users with their email_address.
-        - **phone_number**: Filters users with their phone_number.
-        - **start_date**: Filters users registered on or after this date (YYYY-MM-DD).
-        - **end_date**: Filters users registered on or before this date (YYYY-MM-DD).
-
-        Example usage:
-        ```
-        GET /api/unverified-users/?start_date=2023-01-01&end_date=2023-03-01
-        ```
-        """,
-        manual_parameters=[
-            openapi.Parameter(
-                "start_date",
-                openapi.IN_QUERY,
-                description="Filter users from this date (YYYY-MM-DD)",
-                type=openapi.TYPE_STRING,
-                format=openapi.FORMAT_DATE,
-            ),
-            openapi.Parameter(
-                "end_date",
-                openapi.IN_QUERY,
-                description="Filter users up to this date (YYYY-MM-DD)",
-                type=openapi.TYPE_STRING,
-                format=openapi.FORMAT_DATE,
-            ),
-        ],
-    )
-    def get(self, request, *args, **kwargs):
-        all_users = self.get_queryset()
-
-        # Paginate the queryset
-        page = self.paginate_queryset(all_users)
-        serializer = self.get_serializer(page, many=True)
-        return self.get_paginated_response(serializer.data)
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-
-        # Cast created_at to a date to ignore time when filtering
-        queryset = queryset.annotate(created_date=Cast("created_at", DateField()))
-
-        # Get the start and end dates from the query parameters
-        start_date = self.request.query_params.get("start_date")
-        end_date = self.request.query_params.get("end_date")
-
-        # If start_date is provided, filter the queryset from that date onwards
-        if start_date:
-            start_date_parsed = parse_date(start_date)
-            if start_date_parsed:
-                queryset = queryset.filter(created_date__gte=start_date_parsed)
-
-        # If end_date is provided, filter the queryset up to that date
-        if end_date:
-            end_date_parsed = parse_date(end_date)
-            if end_date_parsed:
-                queryset = queryset.filter(created_date__lte=end_date_parsed)
-
-        return queryset
 
 
 # User-details
