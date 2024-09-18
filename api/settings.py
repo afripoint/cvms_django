@@ -172,13 +172,22 @@ CORS_ALLOW_CREDENTIALS = True
 # EMAIL_HOST_PASSWORD = "714b21431cd663"
 
 # Busola's credentials for email backend
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_HOST = "sandbox.smtp.mailtrap.io"
+# EMAIL_PORT = 2525
+# EMAIL_USE_TLS = True
+# EMAIL_USE_SSL = False
+# EMAIL_HOST_USER = "33e55df66493fc"
+# EMAIL_HOST_PASSWORD = "11db47a90c5e55"
+
+
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "sandbox.smtp.mailtrap.io"
-EMAIL_PORT = 2525
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
-EMAIL_HOST_USER = "33e55df66493fc"
-EMAIL_HOST_PASSWORD = "11db47a90c5e55"
+RESEND_SMTP_PORT = config("RESEND_SMTP_PORT")
+RESEND_SMTP_USERNAME = config("RESEND_SMTP_USERNAME")
+RESEND_SMTP_HOST = config("RESEND_SMTP_HOST")
+RESEND_SMTP_PASSWORD = config("RESEND_SMTP_PASSWORD")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL")
+RESEND_API_KEY = config("RESEND_API_KEY")
 
 
 # REST_FRAMEWORK = {
