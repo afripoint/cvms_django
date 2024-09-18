@@ -65,7 +65,7 @@ def send_html_email(subject, body, from_email=None, to_email=None, **kwargs):
     try:
         connection = get_connection(
             host=config("RESEND_SMTP_HOST"),
-            port=config("RESEND_SMTP_PORT"),
+            port=587,
             username=config("RESEND_SMTP_USERNAME"),
             password=config("RESEND_SMTP_PASSWORD"),
             use_tls=True,
