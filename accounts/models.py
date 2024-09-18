@@ -94,7 +94,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     class Meta:
         verbose_name = "user"
         verbose_name_plural = "users"
-        ordering = ["-first_name"]
+        # ordering = ["-first_name"]
 
     def unsuccessful_login_attempt(self):
         """

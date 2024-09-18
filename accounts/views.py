@@ -152,7 +152,10 @@ class GrantAccessAPIView(APIView):
             )
         except Exception as e:
             return Response(
-                {"error": "An error occurred while retrieving the user.", "details": str(e)},
+                {
+                    "error": "An error occurred while retrieving the user.",
+                    "details": str(e),
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -174,7 +177,10 @@ class GrantAccessAPIView(APIView):
             )
         except Exception as e:
             return Response(
-                {"error": "An error occurred during user save or token generation.", "details": str(e)},
+                {
+                    "error": "An error occurred during user save or token generation.",
+                    "details": str(e),
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -185,7 +191,6 @@ class GrantAccessAPIView(APIView):
         approved_subject = "Activate your account"
         declined_subject = "Request access - declined"
         email_address = user.email_address
-
 
         # Step 4: Email logic
         try:
@@ -243,7 +248,10 @@ class GrantAccessAPIView(APIView):
             )
         except Exception as e:
             return Response(
-                {"error": "An unexpected error occurred while sending email.", "details": str(e)},
+                {
+                    "error": "An unexpected error occurred while sending email.",
+                    "details": str(e),
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -346,6 +354,7 @@ class LoginAPIView(APIView):
 
         email_address = serializer.validated_data.get("email_address")
         password = serializer.validated_data.get("password")
+
         try:
             # Fetch the user by email
             user = CustomUser.objects.get(email_address=email_address, is_verified=True)
@@ -551,13 +560,10 @@ class ForgetPasswordAPIView(APIView):
             subject = "Reset Your Pasword"
 
             message = render_to_string(
-                    "accounts/reset_password_email.html",
-                    {
-                        "first_name": first_name,
-                        "activation_link": activation_link
-                    },
-                )
-                
+                "accounts/reset_password_email.html",
+                {"first_name": first_name, "activation_link": activation_link},
+            )
+
             try:
                 send_html_email(
                     subject=subject,
@@ -584,7 +590,7 @@ class ForgetPasswordAPIView(APIView):
             except ConnectionRefusedError as e:
                 response = {
                     "message": "Could not connect to the email server. Please check your email settings.",
-                    "error": str(e)
+                    "error": str(e),
                 }
                 return Response(
                     data=response, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -593,7 +599,7 @@ class ForgetPasswordAPIView(APIView):
             except TimeoutError as e:
                 response = {
                     "message": "Email server timeout. Please try again later.",
-                    "error": str(e)
+                    "error": str(e),
                 }
                 return Response(
                     data=response, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -603,24 +609,33 @@ class ForgetPasswordAPIView(APIView):
 
 class PasswordTokenCheck(APIView):
     def get(self, request, uidb64, token):
-        # import pdb; pdb.set_trace()
+
         try:
             uid = urlsafe_base64_decode(uidb64).decode()
 
             user = CustomUser.objects.get(pk=uid)
 
             # check if the token has been used
-            token_generator = PasswordResetTokenGenerator()
+            # token_generator = PasswordResetTokenGenerator()
+
+            token_generator = TokenGenerator()
 
             if not token_generator.check_token(user, token):
                 # Redirect to the frontend URL with an invalid token status
-                return Response(
-                    {"error": "Token has been used"}, status=status.HTTP_400_BAD_REQUEST
-                )
-                # return HttpResponseRedirect(
-                #     "https://cvms-admin.vercel.app/#/auth/reset-password?status=invalid",
-                #     status=400,
+                # return Response(
+                #     {"error": "Token has been used"}, status=status.HTTP_400_BAD_REQUEST
                 # )
+                return HttpResponseRedirect(
+                    "https://cvms-admin.vercel.app/#/auth/reset-password?status=invalid",
+                    status=400,
+                )
+
+            # if user.expired_at < timezone.now():
+            #     response = {"message": "Token has expired, please generate another one"}
+            #     return (
+            #         Response(data=response, status=status.HTTP_404_NOT_FOUND),
+            #     )
+
             # return Response(
             #     {
             #         "message": True,
