@@ -1,8 +1,10 @@
 from django.http import HttpResponseRedirect, HttpResponse
 from smtplib import SMTPException
+from django.core.mail import BadHeaderError
 from django.db.models import DateField
 from django.core.exceptions import ValidationError
 from django.db.models.functions import Cast
+from django.template.loader import render_to_string
 import logging
 from rest_framework import generics
 from django.utils.dateparse import parse_date
@@ -34,7 +36,7 @@ from django.urls import reverse
 from datetime import timedelta
 from rest_framework import status
 from django.conf import settings
-from accounts.utils import TokenGenerator, send_admin_email, send_user_email
+from accounts.utils import TokenGenerator, send_html_email
 from data_uploads.pagination import (
     AllUsersPagination,
     ProfilesPegination,
@@ -79,18 +81,36 @@ class UserCreationRequestAPIView(APIView):
                 recipient_email = serializer.validated_data["email_address"]
 
                 # Email content
-                subject = "Access request"
-                message_admin = f"A CVMS user - {first_name} {last_name} is requesting access to the dashboard. Kindly login to the dashboard and grant access"
-                message_user = "You have requested access to the CVMS admin dashboard. You will be notified when granted access."
+                subject = "Request for access request"
+                # message = f"A CVMS user - {first_name} {last_name} is requesting access to the dashboard. Kindly login to the dashboard and grant access"
+                # message_user = "You have requested access to the CVMS admin dashboard. You will be notified when granted access."
 
-                send_admin_email(subject=subject, message=message_admin)
-
-                # Send email to the user
-                send_user_email(
+                message_user = render_to_string(
+                    "accounts/request_email.html",
+                    {
+                        "first_name": first_name,
+                        "last_name": last_name,
+                    },
+                )
+                message_admin = render_to_string(
+                    "accounts/approval_request_email.html",
+                    {
+                        "first_name": first_name,
+                        "last_name": last_name,
+                    },
+                )
+                send_html_email(
                     subject=subject,
-                    message=message_user,
+                    body=message_user,
                     from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[recipient_email],
+                    to_email=[recipient_email],
+                )
+
+                send_html_email(
+                    subject=subject,
+                    body=message_admin,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to_email=["dennisthegenius036@gmail.com"],
                 )
 
                 return Response(
@@ -117,91 +137,115 @@ class UserCreationRequestAPIView(APIView):
 # approve request view
 class GrantAccessAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This endpoint verify users - admin",
+        operation_summary="This endpoint verifies users - admin",
         operation_description="Verify and grant access to users - admin",
         request_body=GrantAccessSerializer,
     )
     def post(self, request, slug):
-        # get the user to verify
+        # Step 1: Get the user by slug
         try:
             user = CustomUser.objects.get(slug=slug)
+        except ObjectDoesNotExist:
+            return Response(
+                {"error": "User not found with the provided slug."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         except Exception as e:
-            response = {"message": f"{e}"}
-            return Response(data=response, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "An error occurred while retrieving the user.", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
+        # Step 2: Validate serializer data
         serializer = GrantAccessSerializer(user, data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
+        if not serializer.is_valid():
+            return Response(
+                {"error": "Invalid data", "details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-            # Generate activation token
+        # Step 3: Save user and generate token
+        try:
+            user = serializer.save()
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-
-            first_name = user.first_name
-            last_name = user.last_name
-            role = user.role
-
-            # Construct activation link
             activation_link = request.build_absolute_uri(
                 reverse("verify-account", kwargs={"uidb64": uid, "token": token})
             )
+        except Exception as e:
+            return Response(
+                {"error": "An error occurred during user save or token generation.", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-            # Access the user's default password
-            default_password = user.default_password
+        first_name = user.first_name
+        last_name = user.last_name
+        role = user.role
+        default_password = user.default_password
+        approved_subject = "Activate your account"
+        declined_subject = "Request access - declined"
+        email_address = user.email_address
 
-            # send activation link
-            subject = "Activate your account"
-            message = f"Please click on the link to change your password from the default one: {activation_link}. Your default password is: {default_password}"
-            recipient_email = recipient_email = user.email_address
 
+        # Step 4: Email logic
+        try:
             if user.is_verified:
-                # Email content for approved users
-                subject = "Activate your account"
-                message = (
-                    f"Dear {first_name} {last_name},\n\n"
-                    f"Your account has been verified and granted access as {role}"
-                    f"Please click on the link to change your password from the default one: {activation_link}"
-                    f"Your default password is: {default_password}"
+                message_approval = render_to_string(
+                    "accounts/approval_email.html",
+                    {
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "role": role,
+                        "activation_link": activation_link,
+                        "default_password": default_password,
+                    },
                 )
-            else:
-                # Email content for declined users
-                subject = "Account Verification Declined"
-                message = (
-                    f"Dear {first_name} {last_name},\n\n"
-                    f"Unfortunately, your account verification has been declined. "
-                    f"If you believe this is a mistake, please contact support for assistance."
-                )
-
-            try:
-                send_user_email(
-                    subject=subject,
-                    message=message,
+                send_html_email(
+                    subject=approved_subject,
+                    body=message_approval,
                     from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[recipient_email],
-                )
-
-                # Save activation token (only for approved users)
-
-                if user.is_verified:
-                    ActivationToken.objects.create(user=user, token=token)
-
-                    # Success response based on verification status
-
-                status_message = (
-                    f"You have successfully granted {first_name} {last_name} access with the role of {role}"
-                    if user.is_verified
-                    else f"Access for {first_name} {last_name} has been declined."
+                    to_email=[email_address],
                 )
                 response = {
-                    "message": status_message,
+                    "message": f"Access granted to {first_name} {last_name} with the role of {role}."
                 }
-                return Response(data=response, status=status.HTTP_201_CREATED)
-            except Exception as e:
-                return Response(
-                    {"error": "Failed to send email notifications", "details": str(e)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                return Response(response, status=status.HTTP_200_OK)
+            else:
+                message_decline = render_to_string(
+                    "accounts/decline_email.html",
+                    {
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "role": role,
+                        "activation_link": activation_link,
+                        "default_password": default_password,
+                    },
                 )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                send_html_email(
+                    subject=declined_subject,
+                    body=message_decline,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to_email=[user.email_address],
+                )
+                response = {
+                    "message": f"Access for {first_name} {last_name} has been declined."
+                }
+                return Response(response, status=status.HTTP_200_OK)
+        except BadHeaderError:
+            return Response(
+                {"error": "Invalid header found in the email."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except SMTPException as e:
+            return Response(
+                {"error": "SMTP error while sending email.", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except Exception as e:
+            return Response(
+                {"error": "An unexpected error occurred while sending email.", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class VerifyUser(APIView):
@@ -487,6 +531,7 @@ class ForgetPasswordAPIView(APIView):
             generate_token = TokenGenerator()
             token = generate_token.make_token(user)
             expired_at = timezone.now() + timezone.timedelta(hours=1)
+            first_name = user.first_name
 
             # create the token
             PasswordResetToken.objects.create(
@@ -504,23 +549,30 @@ class ForgetPasswordAPIView(APIView):
             )
             # Send reset password email
             subject = "Reset Your Pasword"
-            message = f"Please click the following link to reset your password: {activation_link}"
-            recipient_email = email_address
 
+            message = render_to_string(
+                    "accounts/reset_password_email.html",
+                    {
+                        "first_name": first_name,
+                        "activation_link": activation_link
+                    },
+                )
+                
             try:
-                send_mail(
-                    subject, message, settings.DEFAULT_FROM_EMAIL, [recipient_email]
+                send_html_email(
+                    subject=subject,
+                    body=message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to_email=[user.email_address],
                 )
                 response = {
                     "message": "Reset email successfully sent. Please check your email.",
                     "uidb64": uid,
                     "token": token,
                 }
-
                 return Response(data=response, status=status.HTTP_200_OK)
 
             except SMTPException as e:
-                logging.error(f"SMTPException occurred: {str(e)}")
                 response = {
                     "message": "There was an error sending the reset email. Please try again later.",
                     "error": str(e),
@@ -530,18 +582,18 @@ class ForgetPasswordAPIView(APIView):
                 )
 
             except ConnectionRefusedError as e:
-                logging.error(f"Connection error: {str(e)}")
                 response = {
                     "message": "Could not connect to the email server. Please check your email settings.",
+                    "error": str(e)
                 }
                 return Response(
                     data=response, status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
             except TimeoutError as e:
-                logging.error(f"Timeout occurred: {str(e)}")
                 response = {
                     "message": "Email server timeout. Please try again later.",
+                    "error": str(e)
                 }
                 return Response(
                     data=response, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -744,7 +796,7 @@ class AllUsersList(generics.ListAPIView):
     queryset = CustomUser.objects.all().select_related("profile")
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter]
-    search_fields = ["=first_name", "=email_address", "phone_number"]
+    search_fields = ["=first_name", "=last_name", "=email_address", "phone_number"]
     pagination_class = AllUsersPagination
 
     @swagger_auto_schema(
@@ -780,7 +832,7 @@ class AllUsersList(generics.ListAPIView):
                 type=openapi.TYPE_STRING,
                 format=openapi.FORMAT_DATE,
             ),
-             openapi.Parameter(
+            openapi.Parameter(
                 "request_status",
                 openapi.IN_QUERY,
                 description="Filter users by request status (pending, approved, or declined)",
@@ -788,7 +840,6 @@ class AllUsersList(generics.ListAPIView):
             ),
         ],
     )
-
     def get_queryset(self):
         queryset = super().get_queryset()
 
@@ -812,13 +863,11 @@ class AllUsersList(generics.ListAPIView):
             if end_date_parsed:
                 queryset = queryset.filter(created_date__lte=end_date_parsed)
 
-
         # Filter by request_status if provided
         if request_status:
             queryset = queryset.filter(request_status=request_status)
 
         return queryset
-
 
 
 # User-details
