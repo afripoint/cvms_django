@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from accounts.models import CustomUser, Profile
+from accounts.models import CustomUser, PasswordResetToken, Profile
 
 
 class CustomUserAmin(BaseUserAdmin):
@@ -47,4 +47,5 @@ class ProfileAdmin(admin.ModelAdmin):
 
 
 admin.site.register(CustomUser, CustomUserAmin)
+admin.site.register(PasswordResetToken)
 
