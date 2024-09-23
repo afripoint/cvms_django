@@ -2,7 +2,9 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.core.files.storage import FileSystemStorage
+from rest_framework.generics import GenericAPIView
 import csv
+from rest_framework import generics
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from data_uploads.pagination import VinPagination
@@ -25,17 +27,45 @@ class UploadFileAPIView(APIView):
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
     @swagger_auto_schema(
-        operation_summary="This endpoint handle file upload (CSV or Excel) and update the Custom Duty Payment.",
-        operation_description="handle file upload (CSV or Excel) and update the Custom Duty Payment.",
+        operation_summary="Upload a file and process custom duty payment.",
+        operation_description="""
+            This endpoint allows you to upload a file (CSV, Excel, JSON, or XML) 
+            and updates the custom duty payment based on the content of the file.
+            Supported formats: CSV, Excel (.xls/.xlsx), JSON, XML. The file size limit is 5MB.
+        """,
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
                 "file": openapi.Schema(
-                    type=openapi.TYPE_FILE, description="CSV or Excel file to upload"
+                    type=openapi.TYPE_FILE,
+                    description="File to upload (CSV, Excel, JSON, or XML). Max size: 5MB",
                 )
             },
         ),
-        responses={200: "File processed successfully", 400: "Error processing file"},
+        responses={
+            200: openapi.Response(
+                description="File processed and saved successfully.",
+                examples={
+                    "application/json": {
+                        "message": "File processed and saved successfully.",
+                        "file_url": "http://example.com/uploads/yourfile.csv",
+                        "result": {"processed_data": "Details about processed data"},
+                    }
+                },
+            ),
+            400: openapi.Response(
+                description="Bad request, file validation failed.",
+                examples={
+                    "application/json": {
+                        "error": "File size exceeds the maximum limit of 5MB."
+                    },
+                    "application/json": {"error": "No file uploaded"},
+                    "application/json": {
+                        "error": "Invalid file format. Please upload a CSV, Excel, JSON, or XML file."
+                    },
+                },
+            ),
+        },
     )
     # Define the maximum allowed file size (in bytes)
 
@@ -103,39 +133,69 @@ class UploadFileAPIView(APIView):
         )
 
 
-class GetAllVinAPIView(APIView):
+class GetAllVinAPIView(GenericAPIView):
     # authentication_classes = [JWTAuthentication]
     # permission_classes = [IsAuthenticated]
+    queryset = CustomDutyFile.objects.all()
+    serializer_class = CustomDutyUploadSerializer
     pagination_class = VinPagination
 
     @swagger_auto_schema(
-        operation_summary="This endpoint gets all VIN.",
-        operation_description="handles the getting all VIN",
+        operation_summary="Retrieve all Vehicle Identification Numbers (VINs).",
+        operation_description="""
+            This endpoint retrieves all VINs from the database. 
+            It supports pagination for navigating large datasets. 
+            The response includes metadata such as total count, next, and previous page links.
+        """,
+        responses={
+            200: openapi.Response(
+                description="VINs fetched successfully.",
+                examples={
+                    "application/json": {
+                        "message": "All Vins fetched successfully.",
+                        "metadata": {
+                            "count": 100,
+                            "next": "http://example.com/api/get-all-vins/?page=2",
+                            "previous": None,
+                            "has_next": True,
+                            "has_previous": False,
+                            "current_page": 1,
+                            "total_pages": 10,
+                        },
+                        "data": [
+                            {
+                                "vin": "1HGCM82633A123456",
+                                "custom_duty_info": "Duty paid",
+                            },
+                            {
+                                "vin": "2HGCM82633A654321",
+                                "custom_duty_info": "Duty unpaid",
+                            },
+                        ],
+                    }
+                },
+            ),
+            400: openapi.Response(
+                description="Bad request, error fetching VINs.",
+                examples={"application/json": {"error": "Error fetching VIN data"}},
+            ),
+        },
     )
     def get(self, request, *args, **kwargs):
-        all_vin = CustomDutyFile.objects.all()
+        """
+        Handle GET request to retrieve the list of VINs with pagination.
+        """
+        queryset = self.get_queryset()
 
-        # Initialize the paginator
-        paginator = self.pagination_class()
+        # Apply pagination if necessary
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
 
-        # Paginate the queryset
-        page = paginator.paginate_queryset(all_vin, request, view=self)
-
-        # Serialize the data
-        serializer = CustomDutyUploadSerializer(page, many=True)
-
-        # Construct the response
-        paginated_response_data = paginator.get_paginated_response(serializer.data).data
-
-        # Construct the custom response with separate metadata object
-        custom_response_data = {
-            "message": "All Vins fetched successfully.",
-            "metadata": {
-                "count": paginated_response_data.get("count"),
-                "next": paginated_response_data.get("next"),
-                "previous": paginated_response_data.get("previous"),
-            },
-            "data": paginated_response_data.get("results"),
-        }
-
-        return Response(data=custom_response_data, status=status.HTTP_200_OK)
+        # In case pagination is not applied, return the full dataset
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(
+            {"message": "All Vins fetched successfully.", "data": serializer.data},
+            status=status.HTTP_200_OK,
+        )
