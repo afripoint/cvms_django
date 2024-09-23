@@ -120,6 +120,7 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
                 if matching_certificate:
                     payment_status = matching_certificate.get("payment_status", None)
 
+                    
                     if payment_status is True:
                         response = {
                             "certificate_status": "valid",

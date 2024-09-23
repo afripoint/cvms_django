@@ -25,9 +25,8 @@ class ProfileSerializer(serializers.ModelSerializer):
             "department",
             "zone",
             "slug",
-            "created_at",
         )
-        read_only_fields = ("slug", "created_at", "user")
+        read_only_fields = ("slug", "user")
 
 
 class CustomUserSerializer(serializers.ModelSerializer):
