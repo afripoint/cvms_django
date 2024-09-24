@@ -5,10 +5,11 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.core.files.storage import FileSystemStorage
 from rest_framework.generics import GenericAPIView
 import csv
+from rest_framework.exceptions import APIException
 from rest_framework import generics
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from data_uploads.pagination import VinPagination
+from data_uploads.pagination import AllUploadsPagination
 from data_uploads.utils import (
     is_duplicate,
     process_csv,
@@ -16,8 +17,8 @@ from data_uploads.utils import (
     process_json,
     process_xml,
 )
-from .serializers import CustomDutyUploadSerializer
-from .models import CustomDutyFile
+from .serializers import CustomDutyFileUploadsSerializer, CustomDutyUploadSerializer
+from .models import CustomDutyFile, CustomDutyFileUploads, FileActivityLog
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 import pandas as pd
@@ -26,6 +27,9 @@ from drf_yasg import openapi
 
 class UploadFileAPIView(APIView):
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="Upload a file and process custom duty payment.",
@@ -73,7 +77,7 @@ class UploadFileAPIView(APIView):
     def post(self, request, *args, **kwargs):
         # Check if file is in request
         file = request.FILES.get("file")
-        # overwrite = request.data.get("overwrite", False)
+        user = request.user
 
         if not file:
             return Response(
@@ -87,74 +91,132 @@ class UploadFileAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Create a FileSystemStorage instance
-        storage_location = getattr(settings, 'MEDIA_ROOT', 'uploads/')
-        fs = FileSystemStorage(location=storage_location)
+        # Check for duplicate file based on the file name and user
+        try:
+            file_name = CustomDutyFileUploads.objects.filter(file_name=file.name)
+            if file_name.exists():
+                return Response(
+                    {"message": "This file already exists."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except Exception as e:
+            return Response(
+                {"error": f"Error checking for duplicate file: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
+        # Create a FileSystemStorage instance
+        storage_location = getattr(settings, "MEDIA_ROOT", "uploads/")
+        fs = FileSystemStorage(location=storage_location)
         # Save the file to the uploads directory
-        filename = fs.save(file.name, file)
+        try:
+            filename = fs.save(file.name, file)
+        except Exception as e:
+            return Response(
+                {"error": f"Error saving file: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         # Generate the file's URL to be accessed from the frontend
-        file_url = fs.url(filename)
-
-        # Check for duplicate files by name or content
-        # if is_duplicate(file) and not overwrite:
-        #     return Response(
-        #         {
-        #             "error": "Duplicate file detected. Set 'overwrite' to true to overwrite the existing file."
-        #         },
-        #         status=status.HTTP_400_BAD_REQUEST,
-        #     )
+        try:
+            file_url = fs.url(filename)
+        except Exception as e:
+            return Response(
+                {"error": f"Error generating file URL: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         # Process the file based on its etension
         if file.name.endswith(".csv"):
             result = process_csv(file)
+            file_type = "csv"
         elif file.name.endswith((".xls", ".xlsx")):
             result = process_excel(file)
+            file_type = "excel"
         elif file.name.endswith(".json"):
+            file_type = "json"
             result = process_json(file)
         elif file.name.endswith(".xml"):
             result = process_xml(file)
+            file_type = "xml"
         else:
             return Response(
                 {
-                    "error": "Invalid file format. Please upload a CSV, Excel, JSON, or XML file."
+                    "message": "Invalid file format. Please upload a CSV, Excel, JSON, or XML file."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if "error" in result:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            custom_duty_file = CustomDutyFileUploads.objects.create(
+                user=user, file=filename, file_type=file_type, processed_status=True
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Error saving file details to database: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Log the upload activity
+        try:
+            FileActivityLog.objects.create(
+                uploaded_by=user,
+                file_name=file.name,
+                file_url=file_url,
+                file_type=file_type,
+                file_size=file.size,
+                action_type=FileActivityLog.UPLOAD,
+                ip_address=self.get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Error logging file activity: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
         # Return the result with the file URL
         return Response(
             {
                 "message": "File processed and saved successfully.",
-                "file_url": file_url,  # Provide the file URL for frontend
+                "file_url": file_url,
                 "result": result,
             },
             status=status.HTTP_200_OK,
         )
 
+    def get_client_ip(self, request):
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(",")[0]
+        else:
+            ip = request.META.get("REMOTE_ADDR")
+        return ip
 
-class GetAllVinAPIView(GenericAPIView):
+
+class GetAllUploadsAPIView(GenericAPIView):
     # authentication_classes = [JWTAuthentication]
     # permission_classes = [IsAuthenticated]
-    queryset = CustomDutyFile.objects.all()
-    serializer_class = CustomDutyUploadSerializer
-    pagination_class = VinPagination
+    queryset = CustomDutyFileUploads.objects.all()
+    serializer_class = CustomDutyFileUploadsSerializer
+    pagination_class = AllUploadsPagination
 
     @swagger_auto_schema(
-        operation_summary="Retrieve all Vehicle Identification Numbers (VINs).",
+        operation_summary="Retrieve all VIN uploads.",
         operation_description="""
-            This endpoint retrieves all VINs from the database. 
+            This endpoint retrieves all VINs uploads from the database. 
             It supports pagination for navigating large datasets. 
             The response includes metadata such as total count, next, and previous page links.
         """,
+        security=[{"Bearer": []}],
         responses={
             200: openapi.Response(
-                description="VINs fetched successfully.",
+                description="VIN Uploads fetched successfully.",
                 examples={
                     "application/json": {
-                        "message": "All Vins fetched successfully.",
+                        "message": "All Uploads fetched successfully.",
                         "metadata": {
                             "count": 100,
                             "next": "http://example.com/api/get-all-vins/?page=2",
@@ -184,20 +246,23 @@ class GetAllVinAPIView(GenericAPIView):
         },
     )
     def get(self, request, *args, **kwargs):
-        """
-        Handle GET request to retrieve the list of VINs with pagination.
-        """
-        queryset = self.get_queryset()
+        try:
+            queryset = self.get_queryset()
 
-        # Apply pagination if necessary
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            # Apply pagination if necessary
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
 
-        # In case pagination is not applied, return the full dataset
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(
-            {"message": "All Vins fetched successfully.", "data": serializer.data},
-            status=status.HTTP_200_OK,
-        )
+            # In case pagination is not applied, return the full dataset
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(
+                {
+                    "message": "All Vins Uploads fetched successfully.",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            raise APIException(f"Error fetching VIN uploads: {str(e)}")
