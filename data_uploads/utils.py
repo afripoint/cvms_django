@@ -12,6 +12,7 @@ import json
 
 def process_csv(file):
     try:
+        file.seek(0)
         file_data = file.read().decode("utf-8")
         csv_reader = csv.DictReader(file_data.splitlines())
         custom_duties = []
@@ -23,6 +24,7 @@ def process_csv(file):
                 custom_duty = CustomDutyFile(**serializer.validated_data)
                 custom_duties.append(custom_duty)
             else:
+                print(serializer.errors)
                 return {"error": "Invalid data in CSV", "details": serializer.errors}
 
         CustomDutyFile.objects.bulk_create(custom_duties)
