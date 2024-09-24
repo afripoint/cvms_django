@@ -61,7 +61,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         ("declined", "declined"),
         ("pending", "pending"),
     }
-  
+
     phone_number = models.CharField(max_length=15, unique=True)
     first_name = models.CharField(max_length=255)
     default_password = models.CharField(max_length=50, blank=True, null=True)
@@ -159,11 +159,10 @@ class ActivationToken(models.Model):
     token = models.CharField(max_length=555, unique=True)
     used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    used_at  = models.DateTimeField(auto_now=True)
+    used_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.user.email_address} used the token"
-    
 
 
 class PasswordResetToken(models.Model):
@@ -174,13 +173,15 @@ class PasswordResetToken(models.Model):
     used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     expired_at = models.DateTimeField()
-    
+
     def is_expired(self):
         return self.expired_at < timezone.now()
-    
+
 
 class Profile(models.Model):
-    user = models.OneToOneField(CustomUser, related_name='profile', on_delete=models.CASCADE)
+    user = models.OneToOneField(
+        CustomUser, related_name="profile", on_delete=models.CASCADE
+    )
     rank = models.CharField(max_length=50)
     staff_id = models.CharField(max_length=50)
     command = models.CharField(max_length=50)
@@ -197,3 +198,50 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}"
+
+
+# Authentication logging
+class CVMSAuthLog(models.Model):
+    EVENT_TYPE_CHOICES = [
+        ("LOGIN_SUCCESS", "Successful Login"),
+        ("LOGIN_FAILED", "Failed Login"),
+        ("LOGOUT", "Successful Logout"),
+        ("SESSION_TIMEOUT", "Session Timeout"),
+        ("SESSION_CREATION", "Session Creation"),
+        ("SESSION_TERMINATION", "Session Termination"),
+        ("USER_CREATION", "User Account Creation"),
+        ("USER_DELETION", "User Account Deletion"),
+        ("ROLE_CHANGE", "User Role Change"),
+        ("CONFIG_CHANGE", "Configuration Change"),
+        ("FEATURE_TOGGLE", "Feature Toggle"),
+        ("LOG_PURGE", "Log Purge"),
+        ("AUDIT_ACCESS", "Audit Log Access"),
+        ("DATA_QUERY", "Data Query"),
+        ("BULK_EXPORT", "Bulk Data Export"),
+        ("DATA_MODIFICATION", "Data Modification"),
+        ("DATA_DELETION", "Data Deletion"),
+        ("UNAUTHORIZED_ACCESS", "Unauthorized Access Attempt"),
+        ("SECURITY_BREACH", "Security Breach Detected"),
+        ("POLICY_VIOLATION", "Policy Violation"),
+        ("CRITICAL_ERROR", "Critical Error"),
+        ("WARNING", "Warning"),
+        ("DOWNTIME", "System Downtime"),
+        ("UPTIME", "System Uptime"),
+        ("REGULATORY_AUDIT", "Regulatory Audit"),
+        ("COMPLIANCE_REPORT", "Compliance Report"),
+        ("DATA_RETENTION", "Data Retention Event"),
+    ]
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    event_type = models.CharField(max_length=50, choices=EVENT_TYPE_CHOICES)
+    timestamp = models.DateTimeField(auto_now=True)
+    device_details = models.TextField(null=True, blank=True)
+    location = models.CharField(max_length=255, null=True, blank=True)
+    ip_address = models.GenericIPAddressField()
+    reason = models.TextField(null=True, blank=True)
+    additional_info = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.event_type} - {self.user.email_address} at {self.timestamp}"

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from accounts.models import CustomUser, PasswordResetToken, Profile
+from accounts.models import CVMSAuthLog, CustomUser, PasswordResetToken, Profile
 
 
 class CustomUserAmin(BaseUserAdmin):
@@ -41,11 +41,34 @@ class CustomUserAmin(BaseUserAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'staff_id', 'command', 'created_at', 'updated_at', )
+    list_display = (
+        "user",
+        "staff_id",
+        "command",
+        "created_at",
+        "updated_at",
+    )
     list_display_links = ("staff_id",)
+
+
+@admin.register(CVMSAuthLog)
+class CVMSLogAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "event_type",
+        "timestamp",
+        "location",
+        "ip_address",
+        "created_at",
+    )
+    search_fields = (
+        "user__email_address",
+        "event_type",
+        "ip_address",
+        "timestamp",
+    )
 
 
 
 admin.site.register(CustomUser, CustomUserAmin)
 admin.site.register(PasswordResetToken)
-
