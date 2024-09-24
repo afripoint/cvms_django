@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.core.files.storage import FileSystemStorage
@@ -87,7 +88,8 @@ class UploadFileAPIView(APIView):
             )
 
         # Create a FileSystemStorage instance
-        fs = FileSystemStorage(location=self.storage_location)
+        storage_location = getattr(settings, 'MEDIA_ROOT', 'uploads/')
+        fs = FileSystemStorage(location=storage_location)
 
         # Save the file to the uploads directory
         filename = fs.save(file.name, file)
