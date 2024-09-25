@@ -9,12 +9,10 @@ class CustomDutyUploadSerializer(serializers.ModelSerializer):
 
 
 class CustomDutyFileUploadsSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField()
-
     class Meta:
         model = CustomDutyFileUploads
         fields = (
-            "user",
+            "uploaded_by_email",
             "uploaded_by",
             "file_name",
             "file",
