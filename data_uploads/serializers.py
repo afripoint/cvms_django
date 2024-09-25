@@ -9,6 +9,16 @@ class CustomDutyUploadSerializer(serializers.ModelSerializer):
 
 
 class CustomDutyFileUploadsSerializer(serializers.ModelSerializer):
+    uploaded_by = serializers.StringRelatedField()
+
     class Meta:
         model = CustomDutyFileUploads
-        fields = "__all__"
+        fields = (
+            "uploaded_by",
+            "file_name",
+            "file",
+            "file_type",
+            "processed_status",
+            "slug",
+            "uploaded_at",
+        )

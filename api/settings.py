@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "roles",
     "verifications",
     "data_uploads",
+    "security_logs",
     # third party packages
     "drf_yasg",
     "rest_framework",
@@ -49,6 +50,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework_simplejwt",
     "django_filters",
+    "axes",
 ]
 
 MIDDLEWARE = [
@@ -64,10 +66,12 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     # -------CORS-----
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "axes.middleware.AxesMiddleware",
 ]
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
+    "axes.backends.AxesStandaloneBackend",
 ]
 
 
@@ -190,8 +194,6 @@ DEFAULT_FROM_EMAIL = "verify@cvmsnigeria.com"
 RESEND_API_KEY = "re_64KjvwsN_QFkge5aXMi696jbuKjErihST"
 
 
-
-
 # REST_FRAMEWORK = {
 #     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
 #     "PAGE_SIZE": 5,
@@ -221,3 +223,11 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
     },
 }
+
+
+AXES_ENABLED = True
+AXES_LOCK_OUT_AT_FAILURE = True
+AXES_FAILURE_LIMIT = 5  # Max failed attempts before blocking
+AXES_COOLOFF_TIME = 1  # Block for 1 hour
+AXES_RESET_ON_SUCCESS = True  # Reset failed attempt counter on successful login
+

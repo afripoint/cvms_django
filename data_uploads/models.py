@@ -32,7 +32,7 @@ class CustomDutyFile(models.Model):
     
 
 class CustomDutyFileUploads(models.Model):
-    user = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING)
+    uploaded_by = models.ForeignKey(CustomUser, on_delete=models.DO_NOTHING)
     file_name = models.CharField(max_length=255)
     file = models.FileField(upload_to='uploads/')
     file_type = models.CharField(max_length=10)
@@ -49,6 +49,11 @@ class CustomDutyFileUploads(models.Model):
             self.slug = slugify(self.file.name) + str(uuid.uuid4())
 
         super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "customDutyFileUpload"
+        verbose_name_plural = "customDutyFileUploads"
+        ordering = ["-uploaded_by"]
     
 
 class FileActivityLog(models.Model):

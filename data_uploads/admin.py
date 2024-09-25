@@ -54,14 +54,14 @@ class CustumDutyFilesAdmin(admin.ModelAdmin):
 @admin.register(CustomDutyFileUploads)
 class CustomDutyUploadsAdmin(admin.ModelAdmin):
     list_display = (
-        "user",
+        "uploaded_by",
         "file_name",
         "file",
         "file_type",
         "processed_status",
         "uploaded_at",
     )
-    list_display_links = ("user",)
+    list_display_links = ("uploaded_by",)
 
 
 @admin.register(FileActivityLog)

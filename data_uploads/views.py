@@ -26,10 +26,10 @@ from drf_yasg import openapi
 
 
 class UploadFileAPIView(APIView):
-    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
     @swagger_auto_schema(
         operation_summary="Upload a file and process custom duty payment.",
@@ -151,7 +151,7 @@ class UploadFileAPIView(APIView):
 
         try:
             custom_duty_file = CustomDutyFileUploads.objects.create(
-                user=user, file=filename, file_type=file_type, processed_status=True
+                uploaded_by=user, file_name=file.name, file=filename, file_type=file_type, processed_status=True
             )
         except Exception as e:
             return Response(
