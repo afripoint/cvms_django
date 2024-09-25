@@ -3,6 +3,7 @@ import pandas as pd
 from .models import CustomDutyFile
 from .serializers import CustomDutyUploadSerializer
 import hashlib
+from typing import Dict, Any
 import xml.etree.ElementTree as ET
 import json
 
@@ -39,15 +40,21 @@ def process_csv(file):
 
 def process_excel(file):
     try:
-        # Use pandas to read the Excel file
-        df = pd.read_excel(file)
+        # Check the file extension to choose the correct engine
+        file_extension = file.name.split(".")[-1]
+
+        # Use appropriate engine based on the file extension
+        if file_extension == "xls":
+            df = pd.read_excel(file, engine="xlrd")
+        else:  # for .xlsx
+            df = pd.read_excel(file, engine="openpyxl")
 
         # Convert the DataFrame to a list of dictionaries
         custom_data = df.to_dict(orient="records")
         custom_duties = []
 
         for row in custom_data:
-            row = {k: v.strip() if v else "" for k, v in row.items()}
+            row = {k: v.strip() if isinstance(v, str) else v for k, v in row.items()}
             serializer = CustomDutyUploadSerializer(data=row)
             if serializer.is_valid():
                 custom_duty = CustomDutyFile(**serializer.validated_data)
@@ -83,16 +90,33 @@ def is_duplicate(file):
 
 
 # Process JSON files
-def process_json(file):
-    """
-    Process JSON files and return a response dictionary.
-    """
+def process_json(file) -> Dict[str, Any]:
+    
     try:
-        data = json.load(file)
+        file.seek(0)
+        
+        file_content = file.read()
+
+        print(f"File content: {file_content}")
+
+        # import pdb; pdb.set_trace()
+        if not file_content:
+            return {"error": "The JSON file is empty."}
+
+        # Parse the JSON content
+        data = json.loads(file_content)
+
         # Implement the logic to process the JSON data
-        return {"message": "JSON file processed successfully"}
+        # Example: Just return the data length or some processing result
+        return {
+            "message": "JSON file processed successfully",
+            "data_length": len(data)
+        }
+
+    except json.JSONDecodeError as json_err:
+        return {"error": f"Failed to process JSON file: {str(json_err)}"}
     except Exception as e:
-        return {"error": f"Failed to process JSON file: {str(e)}"}
+        return {"error": f"An unexpected error occurred: {str(e)}"}
 
 
 # process XML file
