@@ -82,6 +82,7 @@ class UploadFileAPIView(APIView):
          # Extract the first_name and last_name
         first_name = user.first_name
         last_name = user.last_name
+        email = user.email_address
 
 
         if not file:
@@ -156,7 +157,7 @@ class UploadFileAPIView(APIView):
 
         try:
             custom_duty_file = CustomDutyFileUploads.objects.create(
-                user=user, uploaded_by=f"{first_name} {last_name}", file_name=file.name, file=filename, file_type=file_type, processed_status=True
+                uploaded_by_email=email, uploaded_by=f"{first_name} {last_name}", file_name=file.name, file=filename, file_type=file_type, processed_status=True
             )
         except Exception as e:
             return Response(
