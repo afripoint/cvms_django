@@ -79,6 +79,11 @@ class UploadFileAPIView(APIView):
         file = request.FILES.get("file")
         user = request.user
 
+         # Extract the first_name and last_name
+        first_name = user.first_name
+        last_name = user.last_name
+
+
         if not file:
             return Response(
                 {"error": "No file uploaded"}, status=status.HTTP_400_BAD_REQUEST
@@ -151,7 +156,7 @@ class UploadFileAPIView(APIView):
 
         try:
             custom_duty_file = CustomDutyFileUploads.objects.create(
-                uploaded_by=user, file_name=file.name, file=filename, file_type=file_type, processed_status=True
+                user=user, uploaded_by=f"{first_name} {last_name}", file_name=file.name, file=filename, file_type=file_type, processed_status=True
             )
         except Exception as e:
             return Response(
@@ -180,7 +185,6 @@ class UploadFileAPIView(APIView):
         # Return the result with the file URL
         return Response(
             {
-                "message": "File processed and saved successfully.",
                 "file_url": file_url,
                 "result": result,
             },
@@ -197,8 +201,8 @@ class UploadFileAPIView(APIView):
 
 
 class GetAllUploadsAPIView(GenericAPIView):
-    # authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     queryset = CustomDutyFileUploads.objects.all()
     serializer_class = CustomDutyFileUploadsSerializer
     pagination_class = AllUploadsPagination
