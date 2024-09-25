@@ -12,7 +12,6 @@ class CustomDutyFileUploadsSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomDutyFileUploads
         fields = (
-            "uploaded_by_email",
             "uploaded_by",
             "file_name",
             "file",

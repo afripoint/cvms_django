@@ -32,7 +32,6 @@ class CustomDutyFile(models.Model):
     
 
 class CustomDutyFileUploads(models.Model):
-    uploaded_by_email = models.CharField(max_length=250)
     uploaded_by = models.CharField(max_length=250)
     file_name = models.CharField(max_length=255)
     file = models.FileField(upload_to='uploads/')
