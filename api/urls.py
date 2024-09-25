@@ -39,6 +39,7 @@ urlpatterns = [
     path("all_foriegn_objects/", include("departments.urls")),
     path("verification/", include("verifications.urls")),
     path("data_uploads/", include("data_uploads.urls")),
+    path("security_logs/", include("security_logs.urls")),
 ]
 
 
