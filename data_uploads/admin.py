@@ -54,7 +54,6 @@ class CustumDutyFilesAdmin(admin.ModelAdmin):
 @admin.register(CustomDutyFileUploads)
 class CustomDutyUploadsAdmin(admin.ModelAdmin):
     list_display = (
-        "uploaded_by_email",
         "uploaded_by",
         "file_name",
         "file",
