@@ -156,7 +156,7 @@ class ActivationToken(models.Model):
     user = models.ForeignKey(
         CustomUser, related_name="activation_token", on_delete=models.CASCADE
     )
-    token = models.CharField(max_length=555, unique=True)
+    token = models.CharField(max_length=555, unique=True, blank=True, null=True)
     used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     used_at = models.DateTimeField(auto_now=True)
@@ -169,7 +169,7 @@ class PasswordResetToken(models.Model):
     user = models.ForeignKey(
         CustomUser, related_name="reset_token", on_delete=models.CASCADE
     )
-    token = models.CharField(max_length=555, unique=True)
+    token = models.CharField(max_length=555, unique=True, blank=True, null=True)
     used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     expired_at = models.DateTimeField()
@@ -233,9 +233,7 @@ class CVMSAuthLog(models.Model):
         ("COMPLIANCE_REPORT", "Compliance Report"),
         ("DATA_RETENTION", "Data Retention Event"),
     ]
-    user = models.ForeignKey(
-        CustomUser, on_delete=models.DO_NOTHING, null=True, blank=True
-    )
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     event_type = models.CharField(max_length=50, choices=EVENT_TYPE_CHOICES)
     timestamp = models.DateTimeField(auto_now=True)
     device_details = models.TextField(null=True, blank=True)
@@ -247,3 +245,8 @@ class CVMSAuthLog(models.Model):
 
     def __str__(self):
         return f"{self.event_type} - {self.user} at {self.timestamp}"
+
+    class Meta:
+        verbose_name = "CVMSAuthLog"
+        verbose_name_plural = "CVMSAuthLogs"
+        ordering = ["-user"]
