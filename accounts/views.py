@@ -380,7 +380,7 @@ class LoginAPIView(APIView):
         # Check if the user is locked out
         if user.login_attempts >= 3 and not user.is_active:
             if user.last_login_attempt:
-                locked_account_log(user=user)
+                locked_account_log(request, user)
                 return Response(
                     {
                         "message": "User account is locked. click on forgot password to unlock account"
@@ -397,7 +397,7 @@ class LoginAPIView(APIView):
         # Validate the password
         if not user.check_password(password):
             user.unsuccessful_login_attempt()
-            login_failed_log(user=user, reason="Invalid password")
+            login_failed_log(request, user, reason="Invalid password")
             return Response(
                 {"message": "Incorrect password"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -405,7 +405,8 @@ class LoginAPIView(APIView):
         # Check if the account is inactive
         if not user.is_active:
             login_failed_log(
-                user=user,
+                request,
+                user,
                 reason="Inactive user trying to logging without activation",
             )
             return Response(
@@ -431,7 +432,7 @@ class LoginAPIView(APIView):
 
         if authenticated_user is None:
             user.unsuccessful_login_attempt()
-            login_failed_log(user=user, reason="unauthenticated user or invalid credentials")
+            login_failed_log(request, user, reason="unauthenticated user or invalid credentials")
             return Response(
                 {"message": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -439,7 +440,7 @@ class LoginAPIView(APIView):
         # Generate tokens and return user info
         tokens = create_jwt_pair_for_user(authenticated_user)
         user.successful_login_attempt()
-        login_successful_log(user=user)
+        login_successful_log(request, user)
         return Response(
             {
                 "message": "Login successfully",
@@ -745,7 +746,8 @@ class SetNewPasswordAPIView(APIView):
 
                 # pasword upddated logs
                 password_updated_log(
-                    user=user,
+                    request,
+                    user,
                     reason="user updated his/her password",
                 )
 
