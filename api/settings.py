@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-f*$dp9#im)nkbux#8lml8j#wn^1jvtxu6tb6%&k47f+inid09-"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
@@ -50,7 +50,6 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework_simplejwt",
     "django_filters",
-    "axes",
 ]
 
 MIDDLEWARE = [
@@ -66,12 +65,11 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     # -------CORS-----
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "axes.middleware.AxesMiddleware",
+
 ]
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
-    "axes.backends.AxesStandaloneBackend",
 ]
 
 
@@ -224,10 +222,4 @@ STORAGES = {
     },
 }
 
-
-AXES_ENABLED = True
-AXES_LOCK_OUT_AT_FAILURE = True
-AXES_FAILURE_LIMIT = 5  # Max failed attempts before blocking
-AXES_COOLOFF_TIME = 1  # Block for 1 hour
-AXES_RESET_ON_SUCCESS = True  # Reset failed attempt counter on successful login
 
