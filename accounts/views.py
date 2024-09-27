@@ -385,7 +385,7 @@ class LoginAPIView(APIView):
                     {
                         "message": "User account is locked. click on forgot password to unlock account"
                     },
-                    status=status.HTTP_403_FORBIDDEN,
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             # else:
             # Reset user lockout after 2 hours
@@ -413,7 +413,7 @@ class LoginAPIView(APIView):
                 {
                     "message": "User account is not active. Click on the link in your email to activate your account."
                 },
-                status=status.HTTP_403_FORBIDDEN,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Check if 2FA is enabled: frontend should take note to redirect to the 2FV page
