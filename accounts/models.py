@@ -205,7 +205,9 @@ class CVMSAuthLog(models.Model):
     EVENT_TYPE_CHOICES = [
         ("LOGIN_SUCCESS", "Successful Login"),
         ("LOGIN_FAILED", "Failed Login"),
+        ("ACCOUNT LOCKED", "Account Locked"),
         ("LOGOUT", "Successful Logout"),
+        ("PASSWORD UPDATED", "Password Updated"),
         ("SESSION_TIMEOUT", "Session Timeout"),
         ("SESSION_CREATION", "Session Creation"),
         ("SESSION_TERMINATION", "Session Termination"),
@@ -244,4 +246,4 @@ class CVMSAuthLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.event_type} - {self.user.email_address} at {self.timestamp}"
+        return f"{self.event_type} - {self.user} at {self.timestamp}"

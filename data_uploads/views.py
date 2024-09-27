@@ -4,8 +4,11 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.core.files.storage import FileSystemStorage
 from rest_framework.generics import GenericAPIView
+from django.db.models.functions import Cast
+from django.utils.dateparse import parse_date
 import csv
 from rest_framework.exceptions import APIException
+from django.db.models import DateField
 from rest_framework import generics
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -200,9 +203,9 @@ class UploadFileAPIView(APIView):
         return ip
 
 
-class GetAllUploadsAPIView(GenericAPIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+class GetAllUploadsAPIView(generics.ListAPIView):
+    # authentication_classes = [JWTAuthentication]
+    # permission_classes = [IsAuthenticated]
     queryset = CustomDutyFileUploads.objects.all()
     serializer_class = CustomDutyFileUploadsSerializer
     pagination_class = AllUploadsPagination
@@ -248,25 +251,50 @@ class GetAllUploadsAPIView(GenericAPIView):
                 examples={"application/json": {"error": "Error fetching VIN data"}},
             ),
         },
+        manual_parameters=[
+            openapi.Parameter(
+                "start_date",
+                openapi.IN_QUERY,
+                description="Filter users from this date (YYYY-MM-DD)",
+                type=openapi.TYPE_STRING,
+                format=openapi.FORMAT_DATE,
+            ),
+            openapi.Parameter(
+                "end_date",
+                openapi.IN_QUERY,
+                description="Filter users up to this date (YYYY-MM-DD)",
+                type=openapi.TYPE_STRING,
+                format=openapi.FORMAT_DATE,
+            ),
+            openapi.Parameter(
+                "request_status",
+                openapi.IN_QUERY,
+                description="Filter users by request status (pending, approved, or declined)",
+                type=openapi.TYPE_STRING,
+            ),
+        ],
     )
-    def get(self, request, *args, **kwargs):
-        try:
-            queryset = self.get_queryset()
+    def get_queryset(self):
+        queryset = super().get_queryset()
 
-            # Apply pagination if necessary
-            page = self.paginate_queryset(queryset)
-            if page is not None:
-                serializer = self.get_serializer(page, many=True)
-                return self.get_paginated_response(serializer.data)
+        # Cast created_at to a date to ignore time when filtering
+        queryset = queryset.annotate(created_at=Cast("uploaded_at", DateField()))
 
-            # In case pagination is not applied, return the full dataset
-            serializer = self.get_serializer(queryset, many=True)
-            return Response(
-                {
-                    "message": "All Vins Uploads fetched successfully.",
-                    "data": serializer.data,
-                },
-                status=status.HTTP_200_OK,
-            )
-        except Exception as e:
-            raise APIException(f"Error fetching VIN uploads: {str(e)}")
+        # Get the start and end dates from the query parameters
+        start_date = self.request.query_params.get("start_date")
+        end_date = self.request.query_params.get("end_date")
+
+
+        # If start_date is provided, filter the queryset from that date onwards
+        if start_date:
+            start_date_parsed = parse_date(start_date)
+            if start_date_parsed:
+                queryset = queryset.filter(created_at__gte=start_date_parsed)
+
+        # If end_date is provided, filter the queryset up to that date
+        if end_date:
+            end_date_parsed = parse_date(end_date)
+            if end_date_parsed:
+                queryset = queryset.filter(created_at__lte=end_date_parsed)
+
+        return queryset

@@ -36,7 +36,7 @@ def log_user_login(sender, request, user, **kwargs):
         event_type="LOGIN_SUCCESS",
         ip_address=get_client_ip(request),
         device_details=request.META.get("HTTP_USER_AGENT"),
-        location=get_user_location(request),
+        # location=get_user_location(request),
     )
 
 
@@ -47,19 +47,19 @@ def log_user_logout(sender, request, user, **kwargs):
         event_type="LOGOUT",
         ip_address=get_client_ip(request),
         device_details=request.META.get("HTTP_USER_AGENT"),
-        location=get_user_location(request),
+        # location=get_user_location(request),
     )
 
 
 @receiver(user_login_failed)
-def log_user_login_failed(sender, credentials, request, **kwargs):
+def log_user_login_failed(sender, request, user, **kwargs):
     CVMSAuthLog.objects.create(
         event_type="LOGIN_FAILED",
         ip_address=get_client_ip(request),
         device_details=request.META.get("HTTP_USER_AGENT"),
-        location=get_user_location(request),
-        reason="Incorrect password or locked account",
-        username=credentials.get("username"),
+        # location=get_user_location(request),
+        reason="Incorrect credential or locked account",
+        user=user,
     )
 
     # Other handlers to be created for different events as per the project requirements
@@ -74,6 +74,6 @@ def get_client_ip(request):
     return ip
 
 
-def get_user_location(request):
-    # Implement your logic to determine location based on IP address
-    return "Location Info"
+# def get_user_location(request):
+#     # Implement your logic to determine location based on IP address
+#     return "Location Info"

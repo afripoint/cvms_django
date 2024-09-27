@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from accounts.models import CustomUser, PasswordResetToken, Profile
+from accounts.models import CVMSAuthLog, CustomUser, PasswordResetToken, Profile
 from django.utils import timezone
 from django.utils.http import urlsafe_base64_decode
 from django.core.exceptions import ValidationError
@@ -8,7 +8,6 @@ import re
 from accounts.utils import TokenGenerator
 from departments.models import Command, Department, Rank, Zone
 from roles.models import Role
-
 
 
 # user profile
@@ -353,6 +352,12 @@ class SetNewPasswordSerializer(serializers.Serializer):
 
         if password != confirm_password:
             raise serializers.ValidationError("Passwords do not match.")
-        
+
         # Assuming token and uidb64 validation is handled in the view
         return attrs
+
+
+class CVMSAuthLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CVMSAuthLog
+        fields = "__all__"
