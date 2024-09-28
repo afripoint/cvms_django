@@ -5,6 +5,7 @@ from accounts.models import (
     ActivationToken,
     CVMSAuthLog,
     CustomUser,
+    JWTExpirationLog,
     PasswordResetToken,
     Profile,
 )
@@ -86,6 +87,18 @@ class ActivationTokenAdmin(admin.ModelAdmin):
         "user",
         "token",
     )
+
+
+@admin.register(JWTExpirationLog)
+class JWTExpirationLogAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "expiration_time",
+        "log_time",
+        "ip_address",
+        "token",
+    )
+    search_fields = ("ip_address",)
 
 
 admin.site.register(CustomUser, CustomUserAmin)

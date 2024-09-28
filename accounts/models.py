@@ -250,3 +250,15 @@ class CVMSAuthLog(models.Model):
         verbose_name = "CVMSAuthLog"
         verbose_name_plural = "CVMSAuthLogs"
         ordering = ["-user"]
+
+
+class JWTExpirationLog(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    expiration_time = models.DateTimeField()
+    log_time = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    token = models.CharField(max_length=500)
+    user_agent = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Expired token for {self.user.username} at {self.expiration_time}"

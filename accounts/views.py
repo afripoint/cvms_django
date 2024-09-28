@@ -790,6 +790,7 @@ class ResetPasswordAPIView(APIView):
 class LogoutAPIView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    # authentication_classes = [CustomJWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="This endpoint is responsible for logging the user out of the application",

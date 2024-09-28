@@ -20,7 +20,7 @@ from data_uploads.utils import (
     process_json,
     process_xml,
 )
-from .serializers import CustomDutyFileUploadsSerializer, CustomDutyUploadSerializer
+from .serializers import CustomDutyFileUploadsSerializer
 from .models import CustomDutyFile, CustomDutyFileUploads, FileActivityLog
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
