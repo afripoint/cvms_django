@@ -55,7 +55,7 @@ class ProfileAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     )
-    list_display_links = ("staff_id",)
+    list_display_links = ("user", "staff_id",)
 
 
 @admin.register(CVMSAuthLog)

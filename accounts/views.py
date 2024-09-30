@@ -126,8 +126,12 @@ class UserCreationRequestAPIView(APIView):
                     to_email=["dennisthegenius036@gmail.com"],
                 )
 
+                response = {
+                    "message": "Request for access sent",
+                }
+
                 return Response(
-                    {"message": "Request for access sent"},
+                    data=response,
                     status=status.HTTP_200_OK,
                 )
 
@@ -376,6 +380,13 @@ class LoginAPIView(APIView):
                 {"message": "User with this email does not exist"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        # Check if the user's role is "Enforcement Officer" and block their login attempt
+        if user.role.role == "Enforcement Officer":
+                return Response(
+                    {"message": "You are not authorized to log in here."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )    
 
         # Check if the user is locked out
         if user.login_attempts >= 3 and not user.is_active:
@@ -421,7 +432,7 @@ class LoginAPIView(APIView):
             return Response(
                 {"message": "2FA required", "requires_2fa": True},
                 status=status.HTTP_200_OK,
-            )
+            )    
 
         # Authenticate the user
         authenticated_user = authenticate(
@@ -432,7 +443,9 @@ class LoginAPIView(APIView):
 
         if authenticated_user is None:
             user.unsuccessful_login_attempt()
-            login_failed_log(request, user, reason="unauthenticated user or invalid credentials")
+            login_failed_log(
+                request, user, reason="unauthenticated user or invalid credentials"
+            )
             return Response(
                 {"message": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST
             )
