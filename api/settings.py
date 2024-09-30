@@ -30,7 +30,6 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
-    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -205,30 +204,30 @@ STORAGES = {
     },
 }
 
-JAZZMIN_SETTINGS = {
-    "site_title": "CVMS dashboard",
-    "site_header": "CVMS",
-    "site_brand": "CVMS",
-    "site_logo": "",
-    "login_logo": None,
-    "login_logo_dark": None,
-    "site_logo_classes": "img-circle",
-    "site_icon": None,
-    "welcome_sign": "Welcome to the CVMS",
-    "copyright": "Afripoint Group",
-    "search_model": ["auth.User", "auth.Group"],
-    "user_avatar": None,
-    # Whether to display the side menu
-    "show_sidebar": True,
-    # Whether to aut expand the menu
-    "navigation_expanded": True,
-    # Hide these apps when generating side menu e.g (auth)
-    "hide_apps": [],
-    # Hide these models when generating side menu (e.g auth.user)
-    "hide_models": [],
-    #################
-    # Related Modal #
-    #################
-    # Use modals instead of popups
-    "related_modal_active": False,
-}
+# JAZZMIN_SETTINGS = {
+#     "site_title": "CVMS dashboard",
+#     "site_header": "CVMS",
+#     "site_brand": "CVMS",
+#     "site_logo": "",
+#     "login_logo": None,
+#     "login_logo_dark": None,
+#     "site_logo_classes": "img-circle",
+#     "site_icon": None,
+#     "welcome_sign": "Welcome to the CVMS",
+#     "copyright": "Afripoint Group",
+#     "search_model": ["auth.User", "auth.Group"],
+#     "user_avatar": None,
+#     # Whether to display the side menu
+#     "show_sidebar": True,
+#     # Whether to aut expand the menu
+#     "navigation_expanded": True,
+#     # Hide these apps when generating side menu e.g (auth)
+#     "hide_apps": [],
+#     # Hide these models when generating side menu (e.g auth.user)
+#     "hide_models": [],
+#     #################
+#     # Related Modal #
+#     #################
+#     # Use modals instead of popups
+#     "related_modal_active": False,
+# }
