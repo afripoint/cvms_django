@@ -14,6 +14,8 @@ from django.contrib.auth.models import (
 )
 import pyotp
 
+from roles.models import Role
+
 
 class MyUserManager(BaseUserManager):
     def create_user(self, email_address, password, **extra_fields):
@@ -25,6 +27,7 @@ class MyUserManager(BaseUserManager):
             raise ValueError("The Email address is required")
 
         email_address = self.normalize_email(email_address)
+
         user = self.model(email_address=email_address, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -75,7 +78,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     )
     totp_secret = models.CharField(max_length=32, blank=True, null=True)
     is_2fa_enabled = models.BooleanField(default=False)
-    role = models.CharField(max_length=50)
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)
     slug = models.CharField(max_length=400, blank=True, null=True, unique=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
@@ -250,3 +253,15 @@ class CVMSAuthLog(models.Model):
         verbose_name = "CVMSAuthLog"
         verbose_name_plural = "CVMSAuthLogs"
         ordering = ["-user"]
+
+
+class JWTExpirationLog(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    expiration_time = models.DateTimeField()
+    log_time = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    token = models.CharField(max_length=500)
+    user_agent = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Expired token for {self.user.username} at {self.expiration_time}"

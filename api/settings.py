@@ -30,6 +30,7 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -43,6 +44,8 @@ INSTALLED_APPS = [
     "verifications",
     "data_uploads",
     "security_logs",
+    "permissions",
+    "accounts_mobile",
     # third party packages
     "drf_yasg",
     "rest_framework",
@@ -65,7 +68,6 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     # -------CORS-----
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -163,26 +165,7 @@ AUTH_USER_MODEL = "accounts.CustomUser"
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 
-
-# Email backend configuration
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-# EMAIL_HOST = "sandbox.smtp.mailtrap.io"
-# EMAIL_PORT = 2525
-# EMAIL_USE_TLS = True
-# EMAIL_USE_SSL = False
-# EMAIL_HOST_USER = "59057d3cd17888"
-# EMAIL_HOST_PASSWORD = "714b21431cd663"
-
-# Busola's credentials for email backend
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-# EMAIL_HOST = "sandbox.smtp.mailtrap.io"
-# EMAIL_PORT = 2525
-# EMAIL_USE_TLS = True
-# EMAIL_USE_SSL = False
-# EMAIL_HOST_USER = "33e55df66493fc"
-# EMAIL_HOST_PASSWORD = "11db47a90c5e55"
-
-
+# email settings
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 RESEND_SMTP_PORT = 587
 RESEND_SMTP_USERNAME = "resend"
@@ -193,13 +176,14 @@ RESEND_API_KEY = "re_64KjvwsN_QFkge5aXMi696jbuKjErihST"
 
 
 # REST_FRAMEWORK = {
-#     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-#     "PAGE_SIZE": 5,
+#     'DEFAULT_AUTHENTICATION_CLASSES': (
+#         'accounts.custom_jwt_auth.CustomJWTAuthentication',
+#     ),
 # }
 
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=2),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
@@ -223,3 +207,30 @@ STORAGES = {
 }
 
 
+JAZZMIN_SETTINGS = {
+    "site_title": "CVMS dashboard",
+    "site_header": "CVMS",
+    "site_brand": "CVMS",
+    "site_logo": "",
+    "login_logo": None,
+    "login_logo_dark": None,
+    "site_logo_classes": "img-circle",
+    "site_icon": None,
+    "welcome_sign": "Welcome to the CVMS",
+    "copyright": "Afripoint Group",
+    "search_model": ["auth.User", "auth.Group"],
+    "user_avatar": None,
+    # Whether to display the side menu
+    "show_sidebar": True,
+    # Whether to aut expand the menu
+    "navigation_expanded": True,
+    # Hide these apps when generating side menu e.g (auth)
+    "hide_apps": [],
+    # Hide these models when generating side menu (e.g auth.user)
+    "hide_models": [],
+    #################
+    # Related Modal #
+    #################
+    # Use modals instead of popups
+    "related_modal_active": False,
+}
