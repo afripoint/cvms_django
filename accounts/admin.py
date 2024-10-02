@@ -1,7 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from accounts.models import CVMSAuthLog, CustomUser, PasswordResetToken, Profile
+from accounts.models import (
+    ActivationToken,
+    CVMSAuthLog,
+    CustomUser,
+    JWTExpirationLog,
+    PasswordResetToken,
+    Profile,
+)
 
 
 class CustomUserAmin(BaseUserAdmin):
@@ -48,7 +55,7 @@ class ProfileAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     )
-    list_display_links = ("staff_id",)
+    list_display_links = ("user", "staff_id",)
 
 
 @admin.register(CVMSAuthLog)
@@ -57,7 +64,6 @@ class CVMSLogAdmin(admin.ModelAdmin):
         "user",
         "event_type",
         "timestamp",
-        "location",
         "ip_address",
         "created_at",
     )
@@ -68,6 +74,31 @@ class CVMSLogAdmin(admin.ModelAdmin):
         "timestamp",
     )
 
+
+@admin.register(ActivationToken)
+class ActivationTokenAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "token",
+        "used",
+        "created_at",
+    )
+    search_fields = (
+        "user",
+        "token",
+    )
+
+
+@admin.register(JWTExpirationLog)
+class JWTExpirationLogAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "expiration_time",
+        "log_time",
+        "ip_address",
+        "token",
+    )
+    search_fields = ("ip_address",)
 
 
 admin.site.register(CustomUser, CustomUserAmin)

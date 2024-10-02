@@ -75,3 +75,4 @@ def send_html_email(subject, body, from_email=None, to_email=None, **kwargs):
         EmailThread(email).start()
     except Exception as e:
         print(f"Error setting up email connection or sending email: {e}")
+

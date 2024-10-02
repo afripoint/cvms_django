@@ -14,6 +14,8 @@ from django.contrib.auth.models import (
 )
 import pyotp
 
+from roles.models import Role
+
 
 class MyUserManager(BaseUserManager):
     def create_user(self, email_address, password, **extra_fields):
@@ -25,6 +27,7 @@ class MyUserManager(BaseUserManager):
             raise ValueError("The Email address is required")
 
         email_address = self.normalize_email(email_address)
+
         user = self.model(email_address=email_address, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -75,7 +78,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     )
     totp_secret = models.CharField(max_length=32, blank=True, null=True)
     is_2fa_enabled = models.BooleanField(default=False)
-    role = models.CharField(max_length=50)
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)
     slug = models.CharField(max_length=400, blank=True, null=True, unique=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
@@ -156,7 +159,7 @@ class ActivationToken(models.Model):
     user = models.ForeignKey(
         CustomUser, related_name="activation_token", on_delete=models.CASCADE
     )
-    token = models.CharField(max_length=555, unique=True)
+    token = models.CharField(max_length=555, unique=True, blank=True, null=True)
     used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     used_at = models.DateTimeField(auto_now=True)
@@ -169,7 +172,7 @@ class PasswordResetToken(models.Model):
     user = models.ForeignKey(
         CustomUser, related_name="reset_token", on_delete=models.CASCADE
     )
-    token = models.CharField(max_length=555, unique=True)
+    token = models.CharField(max_length=555, unique=True, blank=True, null=True)
     used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     expired_at = models.DateTimeField()
@@ -205,7 +208,9 @@ class CVMSAuthLog(models.Model):
     EVENT_TYPE_CHOICES = [
         ("LOGIN_SUCCESS", "Successful Login"),
         ("LOGIN_FAILED", "Failed Login"),
+        ("ACCOUNT LOCKED", "Account Locked"),
         ("LOGOUT", "Successful Logout"),
+        ("PASSWORD UPDATED", "Password Updated"),
         ("SESSION_TIMEOUT", "Session Timeout"),
         ("SESSION_CREATION", "Session Creation"),
         ("SESSION_TERMINATION", "Session Termination"),
@@ -231,9 +236,7 @@ class CVMSAuthLog(models.Model):
         ("COMPLIANCE_REPORT", "Compliance Report"),
         ("DATA_RETENTION", "Data Retention Event"),
     ]
-    user = models.ForeignKey(
-        CustomUser, on_delete=models.DO_NOTHING, null=True, blank=True
-    )
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     event_type = models.CharField(max_length=50, choices=EVENT_TYPE_CHOICES)
     timestamp = models.DateTimeField(auto_now=True)
     device_details = models.TextField(null=True, blank=True)
@@ -244,4 +247,21 @@ class CVMSAuthLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.event_type} - {self.user.email_address} at {self.timestamp}"
+        return f"{self.event_type} - {self.user} at {self.timestamp}"
+
+    class Meta:
+        verbose_name = "CVMSAuthLog"
+        verbose_name_plural = "CVMSAuthLogs"
+        ordering = ["-user"]
+
+
+class JWTExpirationLog(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    expiration_time = models.DateTimeField()
+    log_time = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    token = models.CharField(max_length=500)
+    user_agent = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Expired token for {self.user.username} at {self.expiration_time}"

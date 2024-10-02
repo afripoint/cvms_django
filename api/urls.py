@@ -1,4 +1,3 @@
-
 from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
@@ -37,9 +36,11 @@ urlpatterns = [
     path("logs/", include("logs.urls")),
     path("roles/", include("roles.urls")),
     path("all_foriegn_objects/", include("departments.urls")),
-    path("verification/", include("verifications.urls")),
+    path("verification_mobile/", include("verifications.urls")),
     path("data_uploads/", include("data_uploads.urls")),
     path("security_logs/", include("security_logs.urls")),
+    path("permissions/", include("permissions.urls")),
+    path("auth_mobile/", include("accounts_mobile.urls")),
 ]
 
 

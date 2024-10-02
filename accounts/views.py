@@ -24,7 +24,14 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django.core.mail import send_mail
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
+from accounts.auth_logs import (
+    locked_account_log,
+    login_failed_log,
+    login_successful_log,
+    password_updated_log,
+)
 from accounts.filters import CustomUserFilter
+from accounts.signals import get_client_ip
 from accounts.tokens import create_jwt_pair_for_user
 from django.utils import timezone
 from django.contrib.auth.tokens import default_token_generator
@@ -58,7 +65,13 @@ from .serializers import (
     UserCreationRequestSerializer,
     Verify2FASerializer,
 )
-from .models import ActivationToken, CustomUser, PasswordResetToken, Profile
+from .models import (
+    ActivationToken,
+    CVMSAuthLog,
+    CustomUser,
+    PasswordResetToken,
+    Profile,
+)
 from rest_framework.permissions import IsAuthenticated
 
 
@@ -113,8 +126,12 @@ class UserCreationRequestAPIView(APIView):
                     to_email=["dennisthegenius036@gmail.com"],
                 )
 
+                response = {
+                    "message": "Request for access sent",
+                }
+
                 return Response(
-                    {"message": "Request for access sent"},
+                    data=response,
                     status=status.HTTP_200_OK,
                 )
 
@@ -363,47 +380,59 @@ class LoginAPIView(APIView):
                 {"message": "User with this email does not exist"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        # Check if the user's role is "Enforcement Officer" and block their login attempt
+        if user.role.role == "Enforcement Officer":
+                return Response(
+                    {"message": "You are not authorized to log in here."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )    
 
         # Check if the user is locked out
         if user.login_attempts >= 3 and not user.is_active:
-            if (
-                user.last_login_attempt
-                and timezone.now() < user.last_login_attempt + timedelta(hours=2)
-            ):
+            if user.last_login_attempt:
+                locked_account_log(request, user)
                 return Response(
-                    {"message": "User account is locked. Try again after two hours."},
-                    status=status.HTTP_403_FORBIDDEN,
+                    {
+                        "message": "User account is locked. click on forgot password to unlock account"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-            else:
-                # Reset user lockout after 2 hours
-                user.is_active = True
-                user.login_attempts = 0
-                user.last_login_attempt = None
-                user.save()
+            # else:
+            # Reset user lockout after 2 hours
+            # user.is_active = True
+            # user.login_attempts = 0
+            # user.last_login_attempt = None
+            # user.save()
 
         # Validate the password
         if not user.check_password(password):
             user.unsuccessful_login_attempt()
+            login_failed_log(request, user, reason="Invalid password")
             return Response(
                 {"message": "Incorrect password"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Reactivate account if successful login
-        user.successful_login_attempt()
-
         # Check if the account is inactive
         if not user.is_active:
+            login_failed_log(
+                request,
+                user,
+                reason="Inactive user trying to logging without activation",
+            )
             return Response(
-                {"message": "User account is not active. Please activate the account."},
-                status=status.HTTP_403_FORBIDDEN,
+                {
+                    "message": "User account is not active. Click on the link in your email to activate your account."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check if 2FA is enabled
+        # Check if 2FA is enabled: frontend should take note to redirect to the 2FV page
         if user.is_2fa_enabled:
             return Response(
                 {"message": "2FA required", "requires_2fa": True},
                 status=status.HTTP_200_OK,
-            )
+            )    
 
         # Authenticate the user
         authenticated_user = authenticate(
@@ -414,13 +443,17 @@ class LoginAPIView(APIView):
 
         if authenticated_user is None:
             user.unsuccessful_login_attempt()
+            login_failed_log(
+                request, user, reason="unauthenticated user or invalid credentials"
+            )
             return Response(
                 {"message": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Generate tokens and return user info
         tokens = create_jwt_pair_for_user(authenticated_user)
-
+        user.successful_login_attempt()
+        login_successful_log(request, user)
         return Response(
             {
                 "message": "Login successfully",
@@ -719,9 +752,17 @@ class SetNewPasswordAPIView(APIView):
 
                 # Set new password and mark token as used
                 user.set_password(password)
+                user.is_active = True
                 user.save()
                 reset_token.used = True
                 reset_token.save()
+
+                # pasword upddated logs
+                password_updated_log(
+                    request,
+                    user,
+                    reason="user updated his/her password",
+                )
 
                 return Response(
                     {"message": "Password updated successfully."},
@@ -762,6 +803,7 @@ class ResetPasswordAPIView(APIView):
 class LogoutAPIView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    # authentication_classes = [CustomJWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="This endpoint is responsible for logging the user out of the application",

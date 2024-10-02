@@ -1,14 +1,13 @@
 from rest_framework import serializers
-from accounts.models import CustomUser, PasswordResetToken, Profile
-from django.utils import timezone
+from accounts.models import CVMSAuthLog, CustomUser, Profile
 from django.utils.http import urlsafe_base64_decode
 from django.core.exceptions import ValidationError
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
 import re
-from accounts.utils import TokenGenerator
 from departments.models import Command, Department, Rank, Zone
+from permissions.models import Permission
+# from permissions.serializers import PermissionSerializer
+from permissions.serializers import PermissionSerializer
 from roles.models import Role
-
 
 
 # user profile
@@ -29,8 +28,18 @@ class ProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ("slug", "user")
 
 
+class RoleSerializer(serializers.ModelSerializer):
+    permissions = PermissionSerializer(many=True)
+
+    class Meta:
+        model = Role
+        fields = ['role', 'permissions']
+
+
+
 class CustomUserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer(read_only=True)
+    role = RoleSerializer(read_only=True)
 
     class Meta:
         model = CustomUser
@@ -224,33 +233,41 @@ class DeactivateAdminUserSerializer(serializers.ModelSerializer):
             raise ValidationError("Deactivation successfully")
 
 
-class UserCreationRequestSerializer(serializers.ModelSerializer):
+class UserCreationRequestSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=50, min_length=2, required=True)
+    last_name = serializers.CharField(max_length=50, min_length=2, required=True)
+    email_address = serializers.CharField(max_length=50, min_length=2, required=True)
     command = serializers.CharField(max_length=50, min_length=2, required=True)
     department = serializers.CharField(max_length=50, min_length=2, required=True)
     rank = serializers.CharField(max_length=50, min_length=2, required=True)
-    role = serializers.CharField(max_length=50, min_length=2, required=True)
     zone = serializers.CharField(max_length=50, min_length=2, required=True)
+    phone_number = serializers.CharField(max_length=50, min_length=2, required=True)
+    role = serializers.SlugRelatedField(
+        queryset=Role.objects.all(),
+        slug_field='role',
+        required=True
+    )
 
     staff_id = serializers.CharField(write_only=True, required=False)
     password = serializers.CharField(
         write_only=True, required=False, allow_blank=True, min_length=0
     )
 
-    class Meta:
-        model = CustomUser
-        fields = [
-            "first_name",
-            "last_name",
-            "staff_id",
-            "email_address",
-            "command",
-            "department",
-            "role",
-            "rank",
-            "zone",
-            "phone_number",
-            "password",
-        ]
+    # class Meta:
+    #     model = CustomUser
+    #     fields = [
+    #         "first_name",
+    #         "last_name",
+    #         "staff_id",
+    #         "email_address",
+    #         "command",
+    #         "department",
+    #         "role",
+    #         "rank",
+    #         "zone",
+    #         "phone_number",
+    #         "password",
+    #     ]
 
     def validate_email_address(self, value):
         if CustomUser.objects.filter(email_address=value).exists():
@@ -264,15 +281,17 @@ class UserCreationRequestSerializer(serializers.ModelSerializer):
         if not attrs.get("password"):
             # Generate a default password if none is provided
             attrs["password"] = CustomUser.generate_default_password()
+
         return attrs
 
     def create(self, validated_data):
         # extract the related forien key data
-        command = validated_data.pop("command")
+        command = validated_data.pop("command").strip()
         department = validated_data.pop("department")
         rank = validated_data.pop("rank")
         zone = validated_data.pop("zone")
         staff_id = validated_data.pop("staff_id", None)
+        role = validated_data.pop("role")
 
         # Retrieve or generate the password
         password = validated_data.pop("password")
@@ -288,10 +307,13 @@ class UserCreationRequestSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.default_password = password
 
+        user.role = role
+
+
         user.save()
 
         # Update the profile with the provided data (Profile should already exist due to the signal)
-        profile = user.profile
+        profile = Profile.objects.get(user=user)
         profile.command = command
         profile.department = department
         profile.rank = rank
@@ -301,7 +323,6 @@ class UserCreationRequestSerializer(serializers.ModelSerializer):
         profile.save()
 
         return user
-
 
 class GrantAccessSerializer(serializers.ModelSerializer):
     is_verified = serializers.BooleanField()
@@ -353,6 +374,14 @@ class SetNewPasswordSerializer(serializers.Serializer):
 
         if password != confirm_password:
             raise serializers.ValidationError("Passwords do not match.")
-        
+
         # Assuming token and uidb64 validation is handled in the view
         return attrs
+
+
+class CVMSAuthLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CVMSAuthLog
+        fields = "__all__"
+
+
