@@ -211,12 +211,12 @@ class Verify2FASerializer(serializers.Serializer):
         return value
 
 
-class ForgetPasswordEmailRequestSerializer(serializers.ModelSerializer):
+class ForgetPasswordEmailRequestSerializer(serializers.Serializer):
     email_address = serializers.EmailField(min_length=8)
 
-    class Meta:
-        model = CustomUser
-        fields = ("email_address",)
+    # class Meta:
+    #     model = CustomUser
+    #     fields = ("email_address",)
 
 
 class DeactivateAdminUserSerializer(serializers.ModelSerializer):
@@ -252,6 +252,30 @@ class UserCreationRequestSerializer(serializers.Serializer):
     password = serializers.CharField(
         write_only=True, required=False, allow_blank=True, min_length=0
     )
+
+    def validate_phone_number(self, value):
+        """
+        Custom method to validate phone number format
+        """
+        if not value:
+            raise serializers.ValidationError("Phone number is required.")
+
+        if (
+            len(value) != 11
+            and not value.startswith("080")
+            and not value.startswith("+234")
+        ):
+            raise serializers.ValidationError(
+                "Phone number must start with '+234' or '080' and be 11 digits long."
+            )
+
+        if len(value) == 11:
+            value = "+234" + value[1:]
+        elif len(value) == 13:
+            value = "+" + value
+
+        return value
+
 
     # class Meta:
     #     model = CustomUser

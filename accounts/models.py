@@ -80,6 +80,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_2fa_enabled = models.BooleanField(default=False)
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)
     slug = models.CharField(max_length=400, blank=True, null=True, unique=True)
+    otp = models.CharField(max_length=6, null=True, blank=True)
+    otp_expire = models.DateTimeField(blank=True, null=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)

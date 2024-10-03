@@ -41,6 +41,7 @@ urlpatterns = [
     path("security_logs/", include("security_logs.urls")),
     path("permissions/", include("permissions.urls")),
     path("auth_mobile/", include("accounts_mobile.urls")),
+    path("products/", include("products.urls")),
 ]
 
 

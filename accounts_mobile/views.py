@@ -3,13 +3,19 @@ from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.core.exceptions import ObjectDoesNotExist
 from drf_yasg.utils import swagger_auto_schema
 from accounts.auth_logs import locked_account_log, login_failed_log, login_successful_log
 from accounts.models import CustomUser
-from accounts.serializers import LoginSerializer
+from accounts.serializers import ForgetPasswordEmailRequestSerializer, LoginSerializer
 from accounts.tokens import create_jwt_pair_for_user
 from django.contrib.auth import authenticate
 from rest_framework import status
+from datetime import timedelta
+from django.utils import timezone
+
+from accounts_mobile.send import send_otp
+from accounts_mobile.serializers import OTPVerificationSerializer
 
 
 
@@ -113,3 +119,76 @@ class LoginMobileAPIView(APIView):
             status=status.HTTP_200_OK,
         )
 
+# Forgot password
+class ForgetPasswordAPIView(APIView):
+    @swagger_auto_schema(
+        operation_summary="This endpoint is responsible for getting users email to reset their password.",
+        operation_description="This endpoint collects user email for password reset.",
+        request_body=ForgetPasswordEmailRequestSerializer,
+    )
+    def post(self, request):
+        serializer = ForgetPasswordEmailRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            email_address = serializer.validated_data["email_address"]
+            otp_expire = timezone.now() + timedelta(minutes=10)
+            try:
+                user = CustomUser.objects.get(email_address=email_address)
+            except ObjectDoesNotExist:
+                response = {
+                    "message": "User with this email does not exist.",
+                }
+                return Response(data=response, status=status.HTTP_404_NOT_FOUND)
+
+            # send Otp
+            phone_number = user.phone_number
+            first_name = user.first_name
+            otp_sent = send_otp(phone_number=phone_number, first_name=first_name)
+            otp = otp_sent.get("data", {}).get("token")
+
+            if otp_sent:
+                user.otp_expire = otp_expire
+                user.otp = otp
+                user.save()
+                response = {
+                    "message": "User created, OTP has been sent to you",
+                    "slug": user.slug,
+                }
+                return Response(data=response, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# VERIFY OTP
+class OTPVerificationView(APIView):
+    @swagger_auto_schema(
+        operation_summary="This is responsible for verifying a user with an OTP",
+        operation_description="This endpoint verifies a user with his phone number",
+        request_body=OTPVerificationSerializer,
+    )
+    def post(self, request, slug):
+        otp = request.data.get("otp", None)
+        try:
+            user = CustomUser.objects.get(slug=slug, otp=otp)
+
+        except CustomUser.DoesNotExist:
+            return Response(
+                "Wrong OTP, please enter the correct OTP",
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check if the time difference between now and otp_expire is 10 minutes
+        time_difference = timezone.now() - user.otp_expire
+
+        if time_difference >= timedelta(minutes=10):
+            return Response(
+                {"message": "OTP has expired"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.is_verified = True
+        user.is_active = True
+        user.otp_expire = None
+        user.otp  = None
+
+        user.save()
+
+        return Response("Verification successful", status=status.HTTP_200_OK)
