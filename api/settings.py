@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "security_logs",
     "permissions",
     "accounts_mobile",
+    "products",
     # third party packages
     "drf_yasg",
     "rest_framework",

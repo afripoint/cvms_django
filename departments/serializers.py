@@ -6,28 +6,31 @@ from roles.models import Role
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
-        fields = '__all__'
+        fields = ("role",)
+
 
 class RankSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rank
-        fields = '__all__'
+        fields = ("rank_level",)
+
 
 class ZoneSerializer(serializers.ModelSerializer):
     class Meta:
         model = Zone
-        fields = '__all__'
+        fields = ("zone",)
+
 
 class DepartmentsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
-        fields = '__all__'
+        fields = ("department_name",)
+
 
 class CommandSerializer(serializers.ModelSerializer):
     class Meta:
         model = Command
-        fields = '__all__'
-
+        fields = ("command_name",)
 
 
 class CombinedSerializer(serializers.Serializer):
@@ -36,4 +39,3 @@ class CombinedSerializer(serializers.Serializer):
     command = CommandSerializer(many=True)
     zone = ZoneSerializer(many=True)
     rank = RankSerializer(many=True)
-
