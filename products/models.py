@@ -7,6 +7,7 @@ class Product(models.Model):
     product_name = models.CharField(max_length=150)
     product_description = models.TextField()
     product_price = models.IntegerField()
+    is_removed = models.BooleanField(default=False)
     slug = models.CharField(max_length=400, blank=True, null=True, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
