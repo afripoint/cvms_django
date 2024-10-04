@@ -1,0 +1,6 @@
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=cvmsdjangoadminDB
+POSTGRES_USER=afripoint
+POSTGRES_PASSWORD=ZfxjP54cLIdz
+DATABASE_URL=postgres://cvmsdjangoadminDB:ZfxjP54cLIdz@postgres:5432/cvmsdjangoadminDB
