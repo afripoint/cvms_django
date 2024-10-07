@@ -35,6 +35,7 @@ jobs:
           password: kzQdG6Vw4vJQx56obn885jCnuP65
           script: |
             cd /root/cvmsdjangoadmin_server_configuration
+            git fetch --all
             git checkout dev2
             git reset --hard HEAD
             git pull origin dev2
