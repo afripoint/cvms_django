@@ -86,6 +86,10 @@ class UploadFileAPIView(APIView):
         first_name = user.first_name
         last_name = user.last_name
 
+         # Check if the user has the 'upload_files' permission
+        if not user.has_permission('upload_files'):
+            return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
 
         if not file:
             return Response(

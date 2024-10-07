@@ -33,7 +33,11 @@ urlpatterns = [
         VerifyUser.as_view(),
         name="verify-account",
     ),
-    path("change-default-password/", ChangeDefaultPasswordAPIView.as_view(), name="change-default-password"),
+    path(
+        "change-default-password/",
+        ChangeDefaultPasswordAPIView.as_view(),
+        name="change-default-password",
+    ),
     path("login/", LoginAPIView.as_view(), name="login"),
     path("two-factor-login/", TwoFALoginAPIView.as_view(), name="two-factor-login"),
     path("enable2FA/", Enable2FAAPIView.as_view(), name="enable-2FA"),
@@ -77,18 +81,6 @@ urlpatterns = [
         GrantAccessAPIView.as_view(),
         name="grant-access",
     ),
-    # unverified-users
-    # path(
-    #     "unverified-users/",
-    #     UnVerifiedUsersList.as_view(),
-    #     name="unverified-user",
-    # ),
-    # unverified-users-details
-    # path(
-    #     "unverified-user-details/<slug:slug>/",
-    #     UnverifiedUserDetailView.as_view(),
-    #     name="unverified-user-details",
-    # ),
     # all-users
     path(
         "all-users/",
@@ -119,4 +111,5 @@ urlpatterns = [
         UserProfileUpdateAPIView.as_view(),
         name="users-profile-update",
     ),
+  
 ]

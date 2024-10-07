@@ -277,22 +277,6 @@ class UserCreationRequestSerializer(serializers.Serializer):
         return value
 
 
-    # class Meta:
-    #     model = CustomUser
-    #     fields = [
-    #         "first_name",
-    #         "last_name",
-    #         "staff_id",
-    #         "email_address",
-    #         "command",
-    #         "department",
-    #         "role",
-    #         "rank",
-    #         "zone",
-    #         "phone_number",
-    #         "password",
-    #     ]
-
     def validate_email_address(self, value):
         if CustomUser.objects.filter(email_address=value).exists():
             raise serializers.ValidationError(
