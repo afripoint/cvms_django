@@ -65,10 +65,17 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         ("pending", "pending"),
     }
 
+    MESSAGE_CHOICES = (
+        ("sms", "sms"),
+        ("email", "email"),
+        ("whatsapp", "whatsapp"),
+    )
+
     phone_number = models.CharField(max_length=15, unique=True)
     first_name = models.CharField(max_length=255)
     default_password = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=255)
+    message_choice = models.CharField(max_length=50, choices=MESSAGE_CHOICES, default='sms')
     email_address = models.EmailField(max_length=254, unique=True)
     login_attempts = models.IntegerField(default=0)
     last_login_attempt = models.DateTimeField(null=True, blank=True)
@@ -128,6 +135,16 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             return False
         totp = pyotp.TOTP(self.totp_secret)
         return totp.verify(token)
+    
+     # Checking if the user has a specific permission
+    def has_permission(self, permission_code):
+        """
+        Check if the user has a specific permission based on their assigned role.
+        """
+        if self.role:
+            # Check if the role has the specific permission
+            return self.role.permissions.filter(permission_code=permission_code).exists()
+        return False
 
     # Generate a secure random password
     @staticmethod

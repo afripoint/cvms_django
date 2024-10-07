@@ -20,3 +20,10 @@ class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
         fields = ["role", "permissions"]
+
+
+class RolePermissionUpdateSerializer(serializers.Serializer):
+    slug = serializers.CharField(required=True)
+    permissions = serializers.ListField(
+        child=serializers.CharField(max_length=150), required=True
+    )
