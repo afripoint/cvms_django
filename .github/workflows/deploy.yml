@@ -29,15 +29,15 @@ jobs:
       - name: Deploy to server
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SSH_TEST_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          port: ${{ secrets.SSH_PORT }}
-          password: ${{ secrets.SSH_PASSWORD }}
+          host: 31.220.81.224
+          username: root
+          port: 22
+          password: kzQdG6Vw4vJQx56obn885jCnuP65
           script: |
-            cd /root/onenaira/onenaira_server_configuration
+            cd /root/cvmsdjangoadmin_server_configuration
             git checkout main
             git reset --hard HEAD
             git pull origin main
-            docker stack deploy -c /root/onenaira/onenaira_server_configuration/docker-compose.yml onenaira 
+            docker stack deploy -c /root/cvmsdjangoadmin_server_configuration/docker-compose.yml cvmsadmin 
 
           
