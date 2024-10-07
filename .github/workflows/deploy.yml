@@ -29,16 +29,16 @@ jobs:
       - name: Deploy to server
         uses: appleboy/ssh-action@master
         with:
-          host: 31.220.81.224
+          host: 62.84.178.94
           username: root
           port: 22
           password: kzQdG6Vw4vJQx56obn885jCnuP65
           script: |
-            cd /root/cvmsdjangoadmin_server_configuration
+            cd /root/cvmsadmin/cvmsdjangoadmin_server_configuration
             git fetch --all
             git checkout dev2
             git reset --hard HEAD
             git pull origin dev2
-            docker stack deploy -c /root/cvmsdjangoadmin_server_configuration/docker-compose.yml cvmsadmin 
+            docker stack deploy -c /root/cvmsadmin/cvmsdjangoadmin_server_configuration/docker-compose.yml cvmsadmin 
 
           
