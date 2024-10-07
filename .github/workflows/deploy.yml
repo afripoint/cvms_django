@@ -35,9 +35,9 @@ jobs:
           password: kzQdG6Vw4vJQx56obn885jCnuP65
           script: |
             cd /root/cvmsdjangoadmin_server_configuration
-            git checkout main
+            git checkout dev2
             git reset --hard HEAD
-            git pull origin main
+            git pull origin dev2
             docker stack deploy -c /root/cvmsdjangoadmin_server_configuration/docker-compose.yml cvmsadmin 
 
           
