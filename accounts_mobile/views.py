@@ -13,7 +13,7 @@ from accounts.auth_logs import (
     login_successful_log,
 )
 from accounts.models import CustomUser
-from accounts.serializers import ForgetPasswordEmailRequestSerializer, LoginSerializer
+from accounts.serializers import LoginSerializer
 from accounts.tokens import create_jwt_pair_for_user
 from django.contrib.auth import authenticate
 from rest_framework import status
@@ -300,7 +300,7 @@ class ForgetPasswordAPIView(APIView):
         request_body=ForgetPasswordMobileEmailRequestSerializer,
     )
     def post(self, request):
-        serializer = ForgetPasswordEmailRequestSerializer(data=request.data)
+        serializer = ForgetPasswordMobileEmailRequestSerializer(data=request.data)
         if serializer.is_valid():
             email_address = serializer.validated_data["email_address"]
             message_choice = serializer.validated_data["message_choice"]
@@ -359,7 +359,7 @@ class ForgetPasswordAPIView(APIView):
                 return Response(data=response, status=status.HTTP_200_OK)
 
 
-            if message_choice == "whatapp":
+            if message_choice == "whatsapp":
                 send_OTP_whatsapp(
                     phone_number=phone_number,
                     otp_code=otp_code,

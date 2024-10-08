@@ -46,7 +46,7 @@ def send_OTP_whatsapp(phone_number, otp_code, expiration_minutes):
     url = f"{SENDCHAMP_BASE_URL}/whatsapp/message/send"
 
     payload = {
-        "sender": "2347031501124",
+        "sender": "2347067959173",
         "recipient": phone_number,
         "template_code": "c05fc422-23c5-4d28-9199-76dbae2c46e2",
         "type": "template",
@@ -61,6 +61,7 @@ def send_OTP_whatsapp(phone_number, otp_code, expiration_minutes):
     try:
         response = requests.post(url, headers=headers, json=payload)
         response_data = response.json()
+        # print(f"Status Code: {response.status_code}, Response Data: {response_data}")
         if response.status_code == 200:
             return response_data  # OTP sent successfully
         else:
