@@ -28,11 +28,18 @@ class ReportSerializer(serializers.ModelSerializer):
             "query_type",
             "additional_info",
             "file",
+            "status",
+            "created_at",
+            "updated_at",
         )
         read_only_fields = (
             "user",
             "user_vin",
+            "status",
+            "created_at",
+            "updated_at",
         )
 
     def get_user(self, obj):
         return obj.user.profile.staff_id
+
