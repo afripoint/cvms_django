@@ -16,12 +16,11 @@ class Verification(models.Model):
 
     def __str__(self):
         return self.cert_num
-    
+
     class Meta:
         verbose_name = "verification"
         verbose_name_plural = "verifications"
         ordering = ["-created_at"]
-
 
 
 class Report(models.Model):
@@ -34,14 +33,23 @@ class Report(models.Model):
         ("expired certificate", "Expired Certificate"),
         ("others", "Others"),
     )
-    user = models.ForeignKey(CustomUser, related_name='report', on_delete=models.CASCADE)
+
+    STATUS_CHOICES = (
+        ("pending", "Pending"),
+        ("resolved", "Resolved"),
+        ("escalated", "Escalated"),
+    )
+
+    user = models.ForeignKey(
+        CustomUser, related_name="report", on_delete=models.CASCADE
+    )
     user_vin = models.ForeignKey(Verification, on_delete=models.CASCADE)
     query_type = models.CharField(
         max_length=50, choices=QUERY_TYPE_CHOICES, default="incorrect details"
     )
     additional_info = models.TextField()
     file = models.ManyToManyField("ReportFile", blank=True)
-    # status = 
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -549,13 +549,6 @@ class SetNewPasswordMobileAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Check if the user's role is "Enforcement Officer" and block their login attempt
-            if not (user.role.role == "Enforcement Officer"):
-                return Response(
-                    {"message": "You are not authorized to use this app."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
             # Set new password and mark token as used
             user.set_password(password)
             user.is_active = True
