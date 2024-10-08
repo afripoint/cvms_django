@@ -3,6 +3,7 @@ from accounts_mobile.views import (
     ForgetPasswordAPIView,
     LoginMobileAPIView,
     OTPVerificationView,
+    SetNewPasswordMobileAPIView,
 )
 
 
@@ -14,9 +15,9 @@ urlpatterns = [
         name="forget-password-request-email-mobile",
     ),
     path("verify/<slug:slug>/", OTPVerificationView.as_view(), name="verify-mobile"),
-    # path(
-    #     "update-message-choice/",
-    #     UpdateMessageChoiceAPIView.as_view(),
-    #     name="update-message-choice",
-    # ),
+    path(
+        "reset-password/<slug:slug>/",
+        SetNewPasswordMobileAPIView.as_view(),
+        name="reset-password",
+    ),
 ]

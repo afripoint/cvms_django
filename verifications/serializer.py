@@ -13,6 +13,8 @@ class ReportFileSerializer(serializers.ModelSerializer):
 
 
 class ReportSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField(read_only=True)
+    user_vin = serializers.SerializerMethodField(read_only=True)
     file = ReportFileSerializer(many=True, required=False)
     query_type = serializers.ChoiceField(
         choices=Report.QUERY_TYPE_CHOICES, default="incorrect details"
@@ -21,7 +23,16 @@ class ReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = Report
         fields = (
+            "user",
+            "user_vin",
             "query_type",
             "additional_info",
             "file",
         )
+        read_only_fields = (
+            "user",
+            "user_vin",
+        )
+
+    def get_user(self, obj):
+        return obj.user.profile.staff_id

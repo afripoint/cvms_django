@@ -11,6 +11,7 @@ from accounts.auth_logs import (
     locked_account_log,
     login_failed_log,
     login_successful_log,
+    password_updated_log,
 )
 from accounts.models import CustomUser
 from accounts.serializers import LoginSerializer
@@ -25,6 +26,7 @@ from accounts_mobile.send import send_OTP_whatsapp, send_otp
 from accounts_mobile.serializers import (
     ForgetPasswordMobileEmailRequestSerializer,
     OTPVerificationSerializer,
+    SetNewPasswordMobileSerializer,
 )
 from accounts_mobile.utils import generateRandomOTP
 
@@ -342,7 +344,7 @@ class ForgetPasswordAPIView(APIView):
                         "otp_code": otp_code,
                     },
                 )
-               
+
                 send_html_email(
                     subject=subject,
                     body=message_user,
@@ -357,7 +359,6 @@ class ForgetPasswordAPIView(APIView):
                     "slug": user.slug,
                 }
                 return Response(data=response, status=status.HTTP_200_OK)
-
 
             if message_choice == "whatsapp":
                 send_OTP_whatsapp(
@@ -374,7 +375,6 @@ class ForgetPasswordAPIView(APIView):
                 }
                 return Response(data=response, status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                
 
 
 # VERIFY OTP
@@ -459,43 +459,118 @@ class OTPVerificationView(APIView):
 
         user.save()
 
-        return Response("Verification successful", status=status.HTTP_200_OK)
+        response = {
+            "message": "Verification successful",
+            "slug": user.slug,
+        }
+
+        return Response(data=response, status=status.HTTP_200_OK)
 
 
-# Message choices
-# class UpdateMessageChoiceAPIView(APIView):
-#     @swagger_auto_schema(
-#         operation_summary="Update the preferred message delivery method",
-#         operation_description="""
-#         This endpoint allows users to update their preferred mode of receiving messages.
+# reset  password
+class SetNewPasswordMobileAPIView(APIView):
+    @swagger_auto_schema(
+        operation_summary="Reset User's Password",
+        operation_description="""
+        This endpoint allows the user to reset their password after verifying their slug. The new password must meet the following security criteria:
 
-#         The available message options are:
+        ### Password Requirements:
+        - **At least one uppercase letter** (A-Z)
+        - **At least one digit** (0-9)
+        - **At least one special character** from the set: `!@#$%^&*()-_=+{};:,<.>`
 
-#         - **sms**: Receive messages via SMS.
-#         - **email**: Receive messages via Email.
-#         - **whatsapp**: Receive messages via WhatsApp.
+        ### Workflow:
+        2. **Password Update:** If the slug is valid and the user is authorized, the user's password is updated with the new password.
+        3. **Authorization:** The user must have the role of "Enforcement Officer" to proceed with password reset.
 
-#         Example request:
-#         ```
-#         PUT /auth_mobile/update-message-choice/
-#         {
-#             "message_choice": "email"
-#         }
-#         ```
-#         """,
-#         request_body=MessageChoiceSerializer,
-#         responses={
-#             200: "Message preference updated successfully",
-#             400: "Invalid request or validation error",
-#         },
-#     )
-#     def put(self, request):
-#         serializer = MessageChoiceSerializer(data=request.data, partial=True)
 
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(
-#                 {"message": "Message preference updated successfully."},
-#                 status=status.HTTP_200_OK,
-#             )
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        ### Example Usage:
+        ```
+        PATCH /api/set-new-password/
+        {
+            "password": "NewPassword@123",
+            "confirm_password": "NewPassword@123",
+        }
+        ```
+
+        ### Example Responses:
+        - **Success (200 OK)**:
+        ```
+        {
+            "message": "Password updated successfully."
+        }
+        ```
+
+        - **User Not Found (400 Bad Request)**:
+        ```
+        {
+            "error": "user not found."
+        }
+        ```
+
+        - **Unauthorized Role (403 Forbidden)**:
+        ```
+        {
+            "message": "You are not authorized to use this app."
+        }
+        ```
+
+        - **Password Validation Failure (400 Bad Request)**:
+        ```
+        {
+            "password": ["Password must contain at least one uppercase letter, one digit, and one special character."]
+        }
+        ```
+
+        - **Other Validation Failures (400 Bad Request)**:
+        ```json
+        {
+            "slug": ["This field is required."]
+        }
+        ```
+        """,
+        request_body=SetNewPasswordMobileSerializer,
+        responses={
+            200: "Password updated successfully.",
+            400: "Invalid request data or user not found.",
+            403: "User not authorized to reset the password.",
+        }
+    )
+    def patch(self, request, slug):
+        serializer = SetNewPasswordMobileSerializer(data=request.data)
+        if serializer.is_valid():
+            password = serializer.validated_data["password"]
+
+            try:
+                user = CustomUser.objects.get(slug=slug)
+            except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+                return Response(
+                    {"error": "user not found."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Check if the user's role is "Enforcement Officer" and block their login attempt
+            if not (user.role.role == "Enforcement Officer"):
+                return Response(
+                    {"message": "You are not authorized to use this app."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Set new password and mark token as used
+            user.set_password(password)
+            user.is_active = True
+            user.save()
+
+            # pasword updated logs
+            password_updated_log(
+                request,
+                user,
+                reason="user updated his/her password",
+            )
+
+            return Response(
+                {"message": "Password updated successfully."},
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

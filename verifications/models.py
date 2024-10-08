@@ -1,5 +1,7 @@
 from django.db import models
 
+from accounts.models import CustomUser
+
 
 class Verification(models.Model):
     uuid = models.CharField(max_length=50, blank=False, null=True, unique=True)
@@ -32,6 +34,7 @@ class Report(models.Model):
         ("expired certificate", "Expired Certificate"),
         ("others", "Others"),
     )
+    user = models.ForeignKey(CustomUser, related_name='report', on_delete=models.CASCADE)
     user_vin = models.ForeignKey(Verification, on_delete=models.CASCADE)
     query_type = models.CharField(
         max_length=50, choices=QUERY_TYPE_CHOICES, default="incorrect details"
