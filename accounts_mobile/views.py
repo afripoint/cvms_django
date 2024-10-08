@@ -443,15 +443,6 @@ class OTPVerificationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check if the time difference between now and otp_expire is 10 minutes
-        time_difference = timezone.now() - user.otp_expire
-
-        if time_difference >= timedelta(minutes=10):
-            return Response(
-                {"message": "OTP has expired"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         user.is_verified = True
         user.is_active = True
         user.otp_expire = None
@@ -543,7 +534,7 @@ class SetNewPasswordMobileAPIView(APIView):
 
             try:
                 user = CustomUser.objects.get(slug=slug)
-            except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+            except (TypeError, ValueError, CustomUser.DoesNotExist):
                 return Response(
                     {"error": "user not found."},
                     status=status.HTTP_400_BAD_REQUEST,
