@@ -307,7 +307,7 @@ class ForgetPasswordAPIView(APIView):
             email_address = serializer.validated_data["email_address"]
             message_choice = serializer.validated_data["message_choice"]
             otp_expire = timezone.now() + timedelta(minutes=1)
-            otp_code = generateRandomOTP(000000, 999999)
+            otp_code = generateRandomOTP(111111, 999999)
 
             try:
                 user = CustomUser.objects.get(email_address=email_address)
