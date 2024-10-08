@@ -23,7 +23,7 @@ jobs:
           USERNAME: ${{ secrets.DOCKER_USERNAME }}
           PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKERFILE: "./docker/dev/django/Dockerfile"
-          IMAGE_NAME: "afripoint/cvmsadmin_image"
+          IMAGE_NAME: "afripoint/cvms_django_admin_image"
           LATEST: "true"
 
       - name: Deploy to server
