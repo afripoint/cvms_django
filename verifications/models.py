@@ -41,6 +41,7 @@ class Report(models.Model):
     )
     additional_info = models.TextField()
     file = models.ManyToManyField("ReportFile", blank=True)
+    # status = 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
