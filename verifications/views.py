@@ -292,3 +292,8 @@ class CreateReportAPIView(APIView):
             response = {"message": "report created and submitted successfully"}
             return Response(data=response, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+    # List reports 
+    class ReportListAPIView(APIView):
+        pass
