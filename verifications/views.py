@@ -1,15 +1,20 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from drf_yasg import openapi
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import status
-
+from rest_framework.permissions import IsAuthenticated
+from accounts.models import CustomUser
 from verifications.models import Verification
+from verifications.serializer import ReportSerializer
 
 
 class VerifyCertificateWithQRCodeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     """
     API view to verify payment using cert_num extracted from a QR code.
     """
@@ -147,7 +152,6 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
                         "vin": matching_certificate.get("vin"),
                         "uuid": matching_certificate.get("UUID"),
                         "name": f"{matching_certificate.get('user').get('firstname')} {matching_certificate.get('user').get('surname')}",
-                        "vehicle": matching_certificate.get("vehicle"),
                         "email": matching_certificate.get("user_id"),
                         "make": matching_certificate.get("manufacturer"),
                         "year": matching_certificate.get("year"),
@@ -185,8 +189,14 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
                 #     }
                 #     return Response(data=response, status=status.HTTP_404_NOT_FOUND)
 
+                response = {
+                    "message": "certificate fetch successfully",
+                    "data": data_list,
+                    "slug": cert_instance.uuid,
+                }
+
                 return Response(
-                    data=data_list,
+                    data=response,
                     status=status.HTTP_200_OK,
                 )
             return Response(
@@ -201,96 +211,84 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
 
 
 class CreateReportAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
     @swagger_auto_schema(
         operation_summary="Creates report by the enforcement officer after verification",
         operation_description="""
-        This endpoint creates a report for after verification.
+        This endpoint creates a report after the verification process.
         
         ### Workflow:
-       
-        ### Request Fields:
-        - **cert_num** (string): The certificate number extracted from the QR code.
+        - The enforcement officer provides details about a specific verification (`user_vin`).
+        - The report is created, including additional information and optional file attachments.
+        - The `user` field is automatically populated with the currently authenticated user making the request.
 
+        ### Request Fields:
+        - **query_type** (string): The type of report query (e.g., 'fraudulent documentation', 'incorrect details').
+        - **additional_info** (string): Extra information provided by the enforcement officer.
+        - **file** (array): An optional list of files related to the report.
+        
         ### Responses:
-        - **200 OK**: The certificate was successfully verified, and its status is returned.
-        - **404 Not Found**: The certificate number does not match any certificate in the system.
-        - **500 Internal Server Error**: Error connecting to the external API.
+        - **201 Created**: The report was successfully created and submitted.
+        - **400 Bad Request**: The data provided is invalid, and the report could not be created.
 
         ### Example Usage:
         ```
-        POST ///
+        POST /api/reports/{slug}/
         {
-            "cert_num": "12345"
+            "query_type": "incorrect details",
+            "additional_info": "The VIN number details are incorrect",
+            "file": []
         }
         ```
 
         ### Example Response (Success):
         ```
-        HTTP 200 OK
+        HTTP 201 Created
         {
-            "certificate_status": "valid",
-            "payment_status": "paid",
-            "cert_num": "12345"
+            "message": "report created and submitted successfully"
         }
         ```
 
-        ### Example Response (Failure - Certificate Not Found):
+        ### Example Response (Failure - Validation Error):
         ```
-        HTTP 404 Not Found
+        HTTP 400 Bad Request
         {
-            "certificate_status": "Invalid",
-            "message": "No certificate found for cert_num: 12345"
-        }
-        ```
-
-        ### Example Response (Failure - External API Error):
-        ```
-        HTTP 500 Internal Server Error
-        {
-            "error": "Unable to connect to external API",
-            "details": "Error details here"
+            "query_type": [
+                "This field is required."
+            ]
         }
         ```
         """,
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "cert_num": openapi.Schema(
-                    type=openapi.TYPE_STRING, description="Certificate number"
-                )
-            },
-            required=["cert_num"],
-        ),
+        request_body=ReportSerializer,
         responses={
-            200: openapi.Response(
-                description="Certificate found and status returned",
+            201: openapi.Response(
+                description="Report successfully created and submitted",
                 examples={
                     "application/json": {
-                        "certificate_status": "valid",
-                        "payment_status": "paid",
-                        "cert_num": "12345",
+                        "message": "report created and submitted successfully"
                     }
                 },
             ),
-            404: openapi.Response(
-                description="Certificate not found",
+            400: openapi.Response(
+                description="Invalid data provided",
                 examples={
                     "application/json": {
-                        "certificate_status": "Invalid",
-                        "message": "No certificate found for cert_num: 12345",
-                    }
-                },
-            ),
-            500: openapi.Response(
-                description="Server error",
-                examples={
-                    "application/json": {
-                        "error": "Unable to connect to external API",
-                        "details": "Error details here",
+                        "query_type": ["This field is required."],
+                        "additional_info": ["This field cannot be blank."],
                     }
                 },
             ),
         },
     )
-    def post(self, request):
-        pass
+    def post(self, request, slug):
+        vin_user = get_object_or_404(Verification, uuid=slug)
+        serializer = ReportSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save(user=request.user, user_vin=vin_user)
+
+            response = {"message": "report created and submitted successfully"}
+            return Response(data=response, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
