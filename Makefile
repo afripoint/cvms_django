@@ -3,18 +3,16 @@ build:
 
 pbuild:
 	docker compose -f production.yml up --build -d --remove-orphans
-
-
 up:
 	docker compose -f local.yml up -d
 
 down:
 	docker compose -f local.yml down
 
-down-v:
+vdown:
 	docker compose -f local.yml down -v
 
-pdown-v:
+pvdown:
 	docker compose -f production.yml down -v
 
 show-logs:
