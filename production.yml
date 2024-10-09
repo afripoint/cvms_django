@@ -1,10 +1,10 @@
 services:
-    api: &api
+    api:
         build:
             context: .
             dockerfile: ./docker/production/django/Dockerfile
-        image: afriauth_web_image
-        container_name: afriauth_web_container
+        image: cvms_django_dev_image
+        container_name: cvms_django_dev_container
         volumes:
             - ./staticfiles:/app/staticfiles
         ports:
@@ -12,9 +12,29 @@ services:
         env_file:
             - .envs/.production/.django
             - .envs/.production/.postgres
+        environment:
+            DATABASE_URL: postgres://cvmsdjangoadminDB:ZfxjP54cLIdz@postgres:5432/cvmsdjangoadminDB
         networks:
             - cvms_docker_network
+
+    postgres:
+        image: postgres:15-bullseye
+        volumes:
+            - production_postgres_data:/var/lib/postgresql/data
+            - production_postgres_data_backups:/backups
+        networks:
+            - cvms_docker_network
+        environment:
+            POSTGRES_HOST: postgres
+            POSTGRES_PORT: "5432"
+            POSTGRES_DB: cvmsdjangoadminDB
+            POSTGRES_USER: afripoint
+            POSTGRES_PASSWORD: ZfxjP54cLIdz
 
 networks:
     cvms_docker_network:
         external: true
+
+volumes:
+    production_postgres_data: {}
+    production_postgres_data_backups: {}

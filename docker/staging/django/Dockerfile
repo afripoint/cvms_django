@@ -4,7 +4,7 @@ FROM python:${PYTHON_VERSION} as python
 
 
 FROM python as python-build-stage
-ARG BUILD_ENVIRONMENT=dev
+ARG BUILD_ENVIRONMENT=staging
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
   build-essential \
@@ -17,7 +17,7 @@ RUN pip wheel --wheel-dir /usr/src/app/wheels \
 
 
 FROM python as python-run-stage
-ARG BUILD_ENVIRONMENT=dev
+ARG BUILD_ENVIRONMENT=staging
 
 ARG APP_HOME=/app
 
@@ -48,11 +48,11 @@ COPY --from=python-build-stage /usr/src/app/wheels /wheels/
 RUN pip install --no-cache-dir --no-index --find-links=/wheels/ /wheels/* \
   && rm -rf /wheels/
 
-COPY --chown=django:django ./docker/dev/django/entrypoint /entrypoint
+COPY --chown=django:django ./docker/staging/django/entrypoint /entrypoint
 RUN sed -i 's/\r$//g' /entrypoint
 RUN chmod +x /entrypoint
 
-COPY --chown=django:django ./docker/dev/django/start /start
+COPY --chown=django:django ./docker/staging/django/start /start
 RUN sed -i 's/\r$//g' /start
 RUN chmod +x /start
 
