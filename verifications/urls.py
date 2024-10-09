@@ -1,6 +1,6 @@
 from django.urls import path
 
-from verifications.views import CreateReportAPIView, VerifyCertificateWithQRCodeAPIView
+from verifications.views import CreateReportAPIView, VerificationDetailAPIView, VerificationHistoryAPIView, VerifyCertificateWithQRCodeAPIView
 
 urlpatterns = [
     # Define the route for validating the certificate by VIN number
@@ -13,5 +13,15 @@ urlpatterns = [
         "create-report/<uuid:slug>/",
         CreateReportAPIView.as_view(),
         name="create-report",
+    ),
+    path(
+        "history/",
+        VerificationHistoryAPIView.as_view(),
+        name="history",
+    ),
+    path(
+        "detail/<uuid:slug>/",
+        VerificationDetailAPIView.as_view(),
+        name="detail-history",
     ),
 ]

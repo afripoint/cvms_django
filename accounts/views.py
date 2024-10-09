@@ -539,49 +539,62 @@ class ChangeDefaultPasswordAPIView(APIView):
         request_body=ChangeDefaultPassword,
     )
     def patch(self, request):
-        data = request.data
+        # Validate the incoming request data using the serializer
         serializer = ChangeDefaultPassword(data=request.data)
 
         if serializer.is_valid():
-            validated_data = serializer.save()
+            uidb64 = serializer.validated_data.get("uidb64")
+            token = serializer.validated_data.get("token")
+            password = serializer.validated_data.get("password")
 
-            try:
-                token = validated_data.get("token")
-                uidb64 = validated_data.get("uidb64")
-
-                uid = urlsafe_base64_decode(uidb64).decode()
-                user = CustomUser.objects.get(pk=uid)
-
-                # check if the token has been used
-                token_generator = PasswordResetTokenGenerator()
-
-                if not token_generator.check_token(user, token):
-                    return Response(
-                        {"error": "Token has been used"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                # Update user's password and save
-                password = serializer.validated_data.get("password")
-                user.set_password(password)
-                # Activate the user
-                user.is_verified = True
-                user.is_active = True
-                user.default_password = None
-                user.save()
-
+            # Decode UID and retrieve the user
+            user = self.get_user(uidb64)
+            if not user:
                 return Response(
-                    {"message": "Password updated successfully"},
-                    status=status.HTTP_200_OK,
+                    {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-            except CustomUser.DoesNotExist:
+            # Check if the token is valid and not already used
+            if not self.is_token_valid(user, token):
                 return Response(
-                    {"error": "User not found"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {"error": "Token has been used"}, status=status.HTTP_400_BAD_REQUEST
                 )
+
+            # Update the user's password and activate the account
+            self.update_password_and_activate_user(user, password)
+
+            return Response(
+                {"message": "Password updated successfully"}, status=status.HTTP_200_OK
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_user(self, uidb64):
+        """
+        Helper function to retrieve user by decoded UID.
+        """
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            return CustomUser.objects.get(pk=uid)
+        except (CustomUser.DoesNotExist, ValueError, TypeError):
+            return None
+
+    def is_token_valid(self, user, token):
+        """
+        Helper function to validate the password reset token.
+        """
+        token_generator = PasswordResetTokenGenerator()
+        return token_generator.check_token(user, token)
+
+    def update_password_and_activate_user(self, user, password):
+        """
+        Helper function to update the password and activate the user account.
+        """
+        user.set_password(password)
+        user.is_verified = True
+        user.is_active = True
+        user.default_password = None
+        user.save()
 
 
 class LoginAPIView(APIView):
@@ -687,11 +700,11 @@ class LoginAPIView(APIView):
             )
 
         # Check if the user's role is "Enforcement Officer" and block their login attempt
-        if user.role.role == "Enforcement Officer":
-            return Response(
-                {"message": "You are not authorized to log in here."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        # if user.role.role == "Enforcement Officer":
+        #     return Response(
+        #         {"message": "You are not authorized to log in here."},
+        #         status=status.HTTP_403_FORBIDDEN,
+        #     )
 
         # Check if the user is locked out
         if user.login_attempts >= 3 and not user.is_active:
@@ -1190,7 +1203,9 @@ class SetNewPasswordAPIView(APIView):
 
                 # Set new password and mark token as used
                 user.set_password(password)
+                user.login_attempts = None
                 user.is_active = True
+                user.last_login_attempt = None
                 user.save()
                 reset_token.used = True
                 reset_token.save()
