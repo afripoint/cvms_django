@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework.parsers import MultiPartParser, FormParser
 import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -9,7 +10,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from accounts.models import CustomUser
 from verifications.models import Verification
-from verifications.serializer import ReportSerializer
+from verifications.serializer import ReportSerializer, VerificationHistorySerializer
 
 
 class VerifyCertificateWithQRCodeAPIView(APIView):
@@ -211,89 +212,193 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
 
 
 class CreateReportAPIView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="Creates report by the enforcement officer after verification",
-        operation_description="""
-        This endpoint creates a report after the verification process.
-        
-        ### Workflow:
-        - The enforcement officer provides details about a specific verification (`user_vin`).
-        - The report is created, including additional information and optional file attachments.
-        - The `user` field is automatically populated with the currently authenticated user making the request.
-
-        ### Request Fields:
-        - **query_type** (string): The type of report query (e.g., 'fraudulent documentation', 'incorrect details').
-        - **additional_info** (string): Extra information provided by the enforcement officer.
-        - **file** (array): An optional list of files related to the report.
-        
-        ### Responses:
-        - **201 Created**: The report was successfully created and submitted.
-        - **400 Bad Request**: The data provided is invalid, and the report could not be created.
-
-        ### Example Usage:
-        ```
-        POST /api/reports/{slug}/
-        {
-            "query_type": "incorrect details",
-            "additional_info": "The VIN number details are incorrect",
-            "file": []
-        }
-        ```
-
-        ### Example Response (Success):
-        ```
-        HTTP 201 Created
-        {
-            "message": "report created and submitted successfully"
-        }
-        ```
-
-        ### Example Response (Failure - Validation Error):
-        ```
-        HTTP 400 Bad Request
-        {
-            "query_type": [
-                "This field is required."
-            ]
-        }
-        ```
-        """,
-        request_body=ReportSerializer,
-        responses={
-            201: openapi.Response(
-                description="Report successfully created and submitted",
-                examples={
-                    "application/json": {
-                        "message": "report created and submitted successfully"
-                    }
-                },
-            ),
-            400: openapi.Response(
-                description="Invalid data provided",
-                examples={
-                    "application/json": {
-                        "query_type": ["This field is required."],
-                        "additional_info": ["This field cannot be blank."],
-                    }
-                },
-            ),
-        },
+        # request_body=ReportSerializer,
     )
     def post(self, request, slug):
-        vin_user = get_object_or_404(Verification, uuid=slug)
-        serializer = ReportSerializer(data=request.data)
+        vin_slug = get_object_or_404(Verification, uuid=slug)
+        serializer = ReportSerializer(
+            data=request.data, context={"request": request, "vin_slug": vin_slug}
+        )
 
         if serializer.is_valid():
-            serializer.save(user=request.user, user_vin=vin_user)
+            serializer.save()
 
             response = {"message": "report created and submitted successfully"}
             return Response(data=response, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     
 
-    # List reports 
-    class ReportListAPIView(APIView):
-        pass
+# List reports
+class VerificationHistoryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    @swagger_auto_schema(
+        operation_summary="Retrieve Verification History for Enforcement Officer",
+        operation_description="""
+        This endpoint retrieves the verification history for an enforcement officer.
+
+        ### Workflow:
+        1. The authenticated user (enforcement officer) makes a request to this endpoint.
+        2. The system fetches all previous verifications associated with the user.
+        3. The history of verifications is returned, including relevant certificate information.
+
+        ### Request:
+        This is a **GET** request; no additional fields are required in the body.
+
+        ### Responses:
+        - **200 OK**: A list of verification history is returned.
+        - **404 Not Found**: No verification history found for the user.
+        - **500 Internal Server Error**: Internal server error while processing the request.
+
+        ### Example Usage:
+        ```
+        GET /api/verification-history/
+        ```
+
+        ### Example Response (Success):
+        ```json
+        HTTP 200 OK
+        {
+            "message": [
+                {
+                    "cert_num": "12345",
+                    "certificate_status": "valid",
+                    "payment_status": "paid",
+                    "verified_at": "2024-10-08T12:34:56Z"
+                },
+                {
+                    "cert_num": "67890",
+                    "certificate_status": "invalid",
+                    "payment_status": "unpaid",
+                    "verified_at": "2024-09-15T11:22:33Z"
+                }
+            ]
+        }
+        ```
+
+        ### Example Response (No History Found):
+        ```json
+        HTTP 404 Not Found
+        {
+            "message": "No verification history found for the user."
+        }
+        ```
+
+        ### Example Response (Internal Server Error):
+        ```json
+        HTTP 500 Internal Server Error
+        {
+            "error": "Unable to fetch verification history.",
+            "details": "Detailed error message here."
+        }
+        ```
+        """,
+        responses={
+            200: "Verification history retrieved successfully",
+            404: "No verification history found",
+            500: "Internal server error",
+        },
+    )
+    def get(self, request):
+        user = request.user
+        verifications = Verification.objects.filter(user=user)
+
+        if not verifications.exists():
+            return Response(
+                {"message": "No verification history found for the user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = VerificationHistorySerializer(verifications, many=True)
+
+        response = {
+            "message": serializer.data,
+        }
+        return Response(data=response, status=status.HTTP_200_OK)
+
+
+class VerificationDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    @swagger_auto_schema(
+        operation_summary="Retrieve Verification Details",
+        operation_description="""
+        This endpoint retrieves the details of a specific verification associated with the authenticated user.
+
+        ### Workflow:
+        1. The authenticated user makes a request to this endpoint with the verification identifier (slug).
+        2. The system fetches the verification details corresponding to the provided slug.
+        3. The details of the verification are returned to the user.
+
+        ### Request:
+        This is a **GET** request. The slug must be provided as a path parameter.
+
+        ### Responses:
+        - **200 OK**: Verification details are successfully retrieved.
+        - **404 Not Found**: The verification with the provided slug does not exist or does not belong to the authenticated user.
+        - **500 Internal Server Error**: Internal server error while processing the request.
+
+        ### Example Usage:
+        ```
+        GET /api/verification-detail/{slug}/
+        ```
+
+        ### Example Response (Success):
+        ```json
+        HTTP 200 OK
+        {
+            "message": {
+                "cert_num": "12345",
+                "certificate_status": "valid",
+                "payment_status": "paid",
+                "verified_at": "2024-10-08T12:34:56Z",
+                "user": {
+                    "username": "enforcement_officer",
+                    "email": "officer@example.com"
+                }
+            }
+        }
+        ```
+
+        ### Example Response (Not Found):
+        ```json
+        HTTP 404 Not Found
+        {
+            "message": "Verification with the given identifier not found."
+        }
+        ```
+
+        ### Example Response (Internal Server Error):
+        ```json
+        HTTP 500 Internal Server Error
+        {
+            "error": "Unable to fetch verification detail.",
+            "details": "Detailed error message here."
+        }
+        ```
+        """,
+        responses={
+            200: "Verification detail retrieved successfully",
+            404: "Verification not found",
+            500: "Internal server error",
+        },
+    )
+    def get(self, request, slug):
+        user = request.usser
+        verification = get_object_or_404(Verification, uuid=slug, user=user)
+        serializer = VerificationHistorySerializer(verification)
+
+        response = {
+            "message": serializer.data,
+        }
+        return Response(data=response, status=status.HTTP_200_OK)
+
+

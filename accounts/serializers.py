@@ -294,7 +294,7 @@ class UserCreationRequestSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         # extract the related forien key data
-        command = validated_data.pop("command").strip()
+        command = validated_data.pop("command")
         department = validated_data.pop("department")
         rank = validated_data.pop("rank")
         zone = validated_data.pop("zone")

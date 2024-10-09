@@ -543,6 +543,8 @@ class SetNewPasswordMobileAPIView(APIView):
             # Set new password and mark token as used
             user.set_password(password)
             user.is_active = True
+            user.login_attempts = None
+            user.last_login_attempt = None
             user.save()
 
             # pasword updated logs

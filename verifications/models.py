@@ -4,8 +4,9 @@ from accounts.models import CustomUser
 
 
 class Verification(models.Model):
-    uuid = models.CharField(max_length=50, blank=False, null=True, unique=True)
-    vin = models.CharField(max_length=50, blank=False, null=True, unique=True)
+    user = models.ForeignKey(CustomUser, related_name="verification", on_delete=models.CASCADE)
+    uuid = models.CharField(max_length=50, unique=True)
+    vin = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=50, blank=False, null=True)
     cert_num = models.CharField(max_length=50, blank=False, null=True)
     email = models.CharField(max_length=50, blank=False, null=True)
@@ -43,15 +44,18 @@ class Report(models.Model):
     user = models.ForeignKey(
         CustomUser, related_name="report", on_delete=models.CASCADE
     )
-    user_vin = models.ForeignKey(Verification, on_delete=models.CASCADE)
+    vin_slug = models.ForeignKey(Verification,  related_name="reports", on_delete=models.CASCADE)
     query_type = models.CharField(
         max_length=50, choices=QUERY_TYPE_CHOICES, default="incorrect details"
     )
+    files = models.ManyToManyField('ReportFile', related_name='reports', blank=True)
     additional_info = models.TextField()
-    file = models.ManyToManyField("ReportFile", blank=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.email_address}"
 
     class Meta:
         verbose_name = "report"
@@ -59,10 +63,19 @@ class Report(models.Model):
         ordering = ["-created_at"]
 
 
+
 class ReportFile(models.Model):
-    file = models.FileField(upload_to="reports/", blank=True, null=True)
+    file = models.FileField(upload_to='reports/')
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"File for Report ID: {self.file.name}"
+        return self.file.name
+    
+    class Meta:
+        verbose_name = "report file"
+        verbose_name_plural = "report files"
+        ordering = ["-created_at"]
+
+
+
+

@@ -1,9 +1,10 @@
 from django.contrib import admin
-from .models import Report, Verification
+from .models import Report, ReportFile, Verification
 
 
 class VerificationAdmin(admin.ModelAdmin):
     list_display = (
+        "user",
         "uuid",
         "vin",
         "name",
@@ -19,11 +20,19 @@ class VerificationAdmin(admin.ModelAdmin):
 class ReportAdmin(admin.ModelAdmin):
     list_display = (
         "user",
-        "user_vin",
+        "vin_slug",
         "query_type",
+        "created_at",
+    )
+
+
+class ReportFileAdmin(admin.ModelAdmin):
+    list_display = (
+        "file",
         "created_at",
     )
 
 
 admin.site.register(Verification, VerificationAdmin)
 admin.site.register(Report, ReportAdmin)
+admin.site.register(ReportFile, ReportFileAdmin)
