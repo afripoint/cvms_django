@@ -1,6 +1,8 @@
 from django.shortcuts import render, get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.template.loader import render_to_string
+from django.conf import settings
 import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -9,6 +11,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from accounts.models import CustomUser
+from accounts.utils import send_html_email
 from verifications.models import Verification
 from verifications.serializer import ReportSerializer, VerificationHistorySerializer
 
@@ -117,6 +120,7 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
     )
     def post(self, request):
         cert_num = request.data.get("cert_num")
+        user = request.user
 
         if not cert_num:
             return Response(
@@ -150,6 +154,7 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
                 cert_instance, created = Verification.objects.get_or_create(
                     cert_num=matching_certificate.get("cert_num"),
                     defaults={
+                        "user": user,
                         "vin": matching_certificate.get("vin"),
                         "uuid": matching_certificate.get("UUID"),
                         "name": f"{matching_certificate.get('user').get('firstname')} {matching_certificate.get('user').get('surname')}",
@@ -222,18 +227,41 @@ class CreateReportAPIView(APIView):
     )
     def post(self, request, slug):
         vin_slug = get_object_or_404(Verification, uuid=slug)
+        user = request.user
         serializer = ReportSerializer(
             data=request.data, context={"request": request, "vin_slug": vin_slug}
         )
 
         if serializer.is_valid():
             serializer.save()
+            query_type = serializer.validated_data["query_type"]
+            TimeStamp = serializer.validated_data["created_at"]
+            recipient_email_admin = "admin@cvmsnigeria.com"
+            role = user.role.role
+
+            subject = "Verification report"
+
+            message_user = render_to_string(
+                "accounts/request_email.html",
+                {
+                    "staff_id": user.profile.staff_id,
+                    "query_type": query_type,
+                    "TimeStamp": TimeStamp,
+                    "role": role,
+                },
+            )
+
+            send_html_email(
+                subject=subject,
+                body=message_user,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to_email=[recipient_email_admin],
+            )
 
             response = {"message": "report created and submitted successfully"}
             return Response(data=response, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    
 
 # List reports
 class VerificationHistoryAPIView(APIView):
@@ -400,5 +428,3 @@ class VerificationDetailAPIView(APIView):
             "message": serializer.data,
         }
         return Response(data=response, status=status.HTTP_200_OK)
-
-
