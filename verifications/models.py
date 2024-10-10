@@ -41,7 +41,7 @@ class Report(models.Model):
         ("escalated", "Escalated"),
     )
 
-    user = models.ForeignKey(
+    reporting_officer = models.ForeignKey(
         CustomUser, related_name="report", on_delete=models.CASCADE
     )
     vin_slug = models.ForeignKey(Verification,  related_name="reports", on_delete=models.CASCADE)
@@ -51,11 +51,12 @@ class Report(models.Model):
     files = models.ManyToManyField('ReportFile', related_name='reports', blank=True)
     additional_info = models.TextField()
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
+    resolution_comment = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.email_address}"
+        return f"{self.reporting_officer}"
 
     class Meta:
         verbose_name = "report"

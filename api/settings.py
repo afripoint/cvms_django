@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "permissions",
     "accounts_mobile",
     "products",
+    "admin_rosolutions",
     # third party packages
     "drf_yasg",
     "rest_framework",

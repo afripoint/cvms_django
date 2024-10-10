@@ -3,6 +3,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.template.loader import render_to_string
 from django.conf import settings
+from datetime import datetime
 import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -227,6 +228,8 @@ class CreateReportAPIView(APIView):
     )
     def post(self, request, slug):
         vin_slug = get_object_or_404(Verification, uuid=slug)
+        now = datetime.now()
+        current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         user = request.user
         serializer = ReportSerializer(
             data=request.data, context={"request": request, "vin_slug": vin_slug}
@@ -235,19 +238,19 @@ class CreateReportAPIView(APIView):
         if serializer.is_valid():
             serializer.save()
             query_type = serializer.validated_data["query_type"]
-            TimeStamp = serializer.validated_data["created_at"]
             recipient_email_admin = "admin@cvmsnigeria.com"
-            role = user.role.role
 
-            subject = "Verification report"
+            subject = (
+                "New Issue Report Submitted on CVMS — Immediate Attention Requiredt"
+            )
 
             message_user = render_to_string(
-                "accounts/request_email.html",
+                "verifications/notification.html",
                 {
-                    "staff_id": user.profile.staff_id,
                     "query_type": query_type,
-                    "TimeStamp": TimeStamp,
-                    "role": role,
+                    "time_stamp": current_time,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
                 },
             )
 
@@ -258,7 +261,10 @@ class CreateReportAPIView(APIView):
                 to_email=[recipient_email_admin],
             )
 
-            response = {"message": "report created and submitted successfully"}
+            response = {
+                "message": "report created and submitted successfully",
+                "data": serializer.data,
+            }
             return Response(data=response, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

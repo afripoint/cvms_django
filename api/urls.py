@@ -42,6 +42,7 @@ urlpatterns = [
     path("permissions/", include("permissions.urls")),
     path("auth_mobile/", include("accounts_mobile.urls")),
     path("products/", include("products.urls")),
+    path("admin-resolution/", include("admin_rosolutions.urls")),
 ]
 
 
