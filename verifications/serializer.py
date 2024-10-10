@@ -10,7 +10,7 @@ class ReportFileSerializer(serializers.ModelSerializer):
 
 class ReportSerializer(serializers.ModelSerializer):
     files = ReportFileSerializer(many=True, required=False)
-    user = serializers.SerializerMethodField(read_only=True)
+    reporting_officer = serializers.SerializerMethodField(read_only=True)
     vin_slug = serializers.SerializerMethodField(read_only=True)
     query_type = serializers.ChoiceField(
         choices=Report.QUERY_TYPE_CHOICES, default="incorrect details"
@@ -18,11 +18,26 @@ class ReportSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Report
-        fields = ("query_type", "additional_info", "files", "vin_slug", "user")
-        read_only_fields = ("user", "vin_slug")
+        fields = (
+            "query_type",
+            "additional_info",
+            "files",
+            "vin_slug",
+            "reporting_officer",
+        )
+        read_only_fields = ("reporting_officer", "vin_slug")
 
-    def get_user(self, obj):
-        return obj.user.profile.staff_id
+    def get_reporting_officer(self, obj):
+        return obj.reporting_officer.profile.staff_id
+
+    def get_vin_slug(self, obj):
+        # Assuming Verification model has a VIN field or other identifier
+        return {
+            "vin": obj.vin_slug.vin,
+            "name": obj.vin_slug.name,
+            "cert_num": obj.vin_slug.cert_num,
+            "is_duty_paid": obj.vin_slug.is_duty_paid,
+        }
 
     def create(self, validated_data):
         # files_data = validated_data.pop('files', [])
@@ -31,7 +46,7 @@ class ReportSerializer(serializers.ModelSerializer):
         vin_slug = self.context["vin_slug"]
 
         report = Report.objects.create(
-            user=user,
+            reporting_officer=user,
             vin_slug=vin_slug,
             query_type=validated_data["query_type"],
             additional_info=validated_data["additional_info"],
@@ -47,6 +62,7 @@ class ReportSerializer(serializers.ModelSerializer):
 
 class VerificationHistorySerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Verification
         fields = (
@@ -61,5 +77,6 @@ class VerificationHistorySerializer(serializers.ModelSerializer):
             "is_duty_paid",
             "created_at",
         )
+
     def get_user(self, obj):
-        return obj.user.profile.staff_id
+        return f"{obj.user.first_name} {obj.user.last_name}"
