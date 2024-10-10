@@ -227,12 +227,12 @@ class CreateReportAPIView(APIView):
         # request_body=ReportSerializer,
     )
     def post(self, request, slug):
-        vin_slug = get_object_or_404(Verification, uuid=slug)
+        vin = get_object_or_404(Verification, uuid=slug)
         now = datetime.now()
         current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         user = request.user
         serializer = ReportSerializer(
-            data=request.data, context={"request": request, "vin_slug": vin_slug}
+            data=request.data, context={"request": request, "vin": vin}
         )
 
         if serializer.is_valid():

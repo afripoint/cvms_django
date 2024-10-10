@@ -20,7 +20,7 @@ class VerificationAdmin(admin.ModelAdmin):
 class ReportAdmin(admin.ModelAdmin):
     list_display = (
         "reporting_officer",
-        "vin_slug",
+        "vin",
         "query_type",
         "created_at",
     )
