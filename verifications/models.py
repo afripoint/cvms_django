@@ -1,5 +1,6 @@
 from django.db import models
-
+import uuid
+from django.utils.text import slugify
 from accounts.models import CustomUser
 
 
@@ -44,11 +45,12 @@ class Report(models.Model):
     reporting_officer = models.ForeignKey(
         CustomUser, related_name="report", on_delete=models.CASCADE
     )
-    vin_slug = models.ForeignKey(Verification,  related_name="reports", on_delete=models.CASCADE)
+    vin = models.ForeignKey(Verification,  related_name="reports", on_delete=models.CASCADE)
     query_type = models.CharField(
         max_length=50, choices=QUERY_TYPE_CHOICES, default="incorrect details"
     )
     files = models.ManyToManyField('ReportFile', related_name='reports', blank=True)
+    slug = models.CharField(max_length=400, blank=True, null=True, unique=True)
     additional_info = models.TextField()
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
     resolution_comment = models.TextField(blank=True, null=True)
@@ -62,6 +64,11 @@ class Report(models.Model):
         verbose_name = "report"
         verbose_name_plural = "reports"
         ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.vin) + str(uuid.uuid4())
+        super().save(*args, **kwargs)
 
 
 
