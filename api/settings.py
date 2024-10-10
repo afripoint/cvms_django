@@ -105,23 +105,23 @@ WSGI_APPLICATION = "api.wsgi.application"
 #     }
 # }
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": config("POSTGRES_DB"),
-#         "USER": config("POSTGRES_USER"),
-#         "PASSWORD": config("POSTGRES_PASSWORD"),
-#         "HOST": config("POSTGRES_HOST"),
-#         "PORT": config("POSTGRES_PORT", 5432),
-#         # "OPTIONS": {
-#         #     "sslmode": "require",
-#         # },
-#     }
-# }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config("POSTGRES_DB"),
+        "USER": config("POSTGRES_USER"),
+        "PASSWORD": config("POSTGRES_PASSWORD"),
+        "HOST": config("POSTGRES_HOST"),
+        # "PORT": config("POSTGRES_PORT", 5432),
+        # "OPTIONS": {
+        #     "sslmode": "require",
+        # },
+    }
+}
 
 # DATABASES = {"default": config("DATABASE_URL")}
 
-DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL"))}
+# DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL"))}
 
 
 # Password validation
