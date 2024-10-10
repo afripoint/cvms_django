@@ -105,42 +105,32 @@ class VerificationReportDetailAPIView(APIView):
     authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
-        operation_summary="List all verification reports with optional filters",
+        operation_summary="Retrieve a specific verification report",
         operation_description="""
-        This endpoint retrieves all verification reports. 
-        You can filter the reports using the following query parameters:
-
-        - **start_date**: Filters reports created on or after this date (YYYY-MM-DD).
-        - **end_date**: Filters reports created on or before this date (YYYY-MM-DD).
-        - **status**: Filters reports by status (pending, resolved, escalated).
-
+        This endpoint retrieves the details of a specific verification report based on the provided slug.
+        
         Example usage:
         ```
-        GET /verification-reports/?start_date=2024-01-01&end_date=2024-03-01&status=pending
+        GET /verification-reports/{slug}/
         ```
         """,
-        manual_parameters=[
-            openapi.Parameter(
-                "start_date",
-                openapi.IN_QUERY,
-                description="Filter reports from this date (YYYY-MM-DD)",
-                type=openapi.TYPE_STRING,
-                format=openapi.FORMAT_DATE,
+        responses={
+            200: openapi.Response(
+                description="Successfully retrieved the report",
+                examples={
+                    "application/json": {
+                        "data": {
+                            "id": 123,
+                            "slug": "report-123",
+                            "status": "pending",
+                            "resolution_comment": "No resolution yet",
+                            # Other fields from VerificationsIsuesSerializer
+                        }
+                    }
+                }
             ),
-            openapi.Parameter(
-                "end_date",
-                openapi.IN_QUERY,
-                description="Filter reports up to this date (YYYY-MM-DD)",
-                type=openapi.TYPE_STRING,
-                format=openapi.FORMAT_DATE,
-            ),
-            openapi.Parameter(
-                "status",
-                openapi.IN_QUERY,
-                description="Filter reports by status (pending, resolved, escalated)",
-                type=openapi.TYPE_STRING,
-            ),
-        ],
+            404: openapi.Response(description="Report not found"),
+        }
     )
     def get(self, request, slug):
         report = get_object_or_404(Report, slug=slug)
@@ -157,42 +147,28 @@ class VerificationReportUpdateAPIView(APIView):
     authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
-        operation_summary="List all verification reports with optional filters",
+        operation_summary="Update a specific verification report",
         operation_description="""
-        This endpoint retrieves all verification reports. 
-        You can filter the reports using the following query parameters:
-
-        - **start_date**: Filters reports created on or after this date (YYYY-MM-DD).
-        - **end_date**: Filters reports created on or before this date (YYYY-MM-DD).
-        - **status**: Filters reports by status (pending, resolved, escalated).
-
+        This endpoint allows updating specific fields (status and resolution comment) of a verification report based on the provided slug.
+        
         Example usage:
         ```
-        GET /verification-reports/?start_date=2024-01-01&end_date=2024-03-01&status=pending
+        PATCH /verification-reports/{slug}/
         ```
         """,
-        manual_parameters=[
-            openapi.Parameter(
-                "start_date",
-                openapi.IN_QUERY,
-                description="Filter reports from this date (YYYY-MM-DD)",
-                type=openapi.TYPE_STRING,
-                format=openapi.FORMAT_DATE,
+        request_body=VerificationsIsuesDetailSerializer,
+        responses={
+            200: openapi.Response(
+                description="Report updated successfully",
+                examples={
+                    "application/json": {
+                        "message": "status updated successfully",
+                    }
+                }
             ),
-            openapi.Parameter(
-                "end_date",
-                openapi.IN_QUERY,
-                description="Filter reports up to this date (YYYY-MM-DD)",
-                type=openapi.TYPE_STRING,
-                format=openapi.FORMAT_DATE,
-            ),
-            openapi.Parameter(
-                "status",
-                openapi.IN_QUERY,
-                description="Filter reports by status (pending, resolved, escalated)",
-                type=openapi.TYPE_STRING,
-            ),
-        ],
+            400: openapi.Response(description="Invalid data provided"),
+            404: openapi.Response(description="Report not found"),
+        }
     )
     def patch(self, request, slug):
         report = get_object_or_404(Report, slug=slug)
