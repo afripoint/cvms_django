@@ -61,7 +61,7 @@ class VerificationsIsuesDetailSerializer(serializers.ModelSerializer):
             "max_length": "The resolution comment must not exceed 500 characters."
         },
     )
-    query_type = serializers.ChoiceField(
+    status = serializers.ChoiceField(
         choices=Report.STATUS_CHOICES, default="pending"
     )
 
