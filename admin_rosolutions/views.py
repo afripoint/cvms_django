@@ -1,8 +1,10 @@
 from django.shortcuts import render
 from django.shortcuts import render, get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
+from django.utils.dateparse import parse_date
 from django.conf import settings
 from django.db.models import DateField
+from django.contrib.contenttypes.models import ContentType
 from rest_framework.permissions import AllowAny
 from rest_framework import filters
 from rest_framework import generics
@@ -15,8 +17,9 @@ from rest_framework import status
 from django.db.models.functions import Cast
 from rest_framework.permissions import IsAuthenticated
 from accounts.models import CustomUser
+from admin_rosolutions.models import AdminResolutionLog
 from admin_rosolutions.pagination import VerificationReportPagination
-from admin_rosolutions.serializers import VerificationsIsuesSerializer, VerificationsIsuesUpdateSerializer
+from admin_rosolutions.serializers import VerificationLogsSerializer, VerificationsIsuesSerializer, VerificationsIsuesUpdateSerializer
 from verifications.models import Verification, Report
 
 
@@ -173,9 +176,20 @@ class VerificationReportUpdateAPIView(APIView):
     def patch(self, request, slug):
         report = get_object_or_404(Report, slug=slug)
         serializer = VerificationsIsuesUpdateSerializer(report, data=request.data, context={"request": request})
+        device = request.META.get('HTTP_USER_AGENT', 'unknown device')
+        ip_address = request.META.get('REMOTE_ADDR')
         
         if serializer.is_valid():
             serializer.save()
+
+            AdminResolutionLog.objects.create(
+                user=request.user,
+                content_type=ContentType.objects.get_for_model(Report),
+                object_id=report.id,
+                action_type="report updated",
+                device=device,
+                ip_address=ip_address,
+            )
 
             response = {
                 "message": "status updated successfully",
@@ -185,5 +199,81 @@ class VerificationReportUpdateAPIView(APIView):
 
 
 
+class VerificationLog(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    @swagger_auto_schema(
+        operation_summary="Retrieve all verification logs",
+        operation_description="""
+        This endpoint retrieves all verification logs.
+
+        Example usage:
+        ```
+        GET /verification-reports/
+        ```
+
+        ### Responses:
+        - **200 OK**: A list of verification logs is returned.
+        - **Example Response**:
+        ```json
+        {
+            "message": [
+                {
+                    "id": 1,
+                    "user": "John Doe",
+                    "action_type": "view",
+                    "device": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                    "ip_address": "192.168.1.1",
+                    "timestamp": "2024-10-10T12:34:56Z"
+                },
+                {
+                    "id": 2,
+                    "user": "Jane Smith",
+                    "action_type": "update",
+                    "device": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+                    "ip_address": "192.168.1.2",
+                    "timestamp": "2024-10-10T13:45:22Z"
+                }
+            ]
+        }
+        ```
+        """,
+        responses={
+            200: openapi.Response(
+                description="Verification logs retrieved successfully",
+                examples={
+                    "application/json": {
+                        "message": [
+                            {
+                                "id": 1,
+                                "user": "John Doe",
+                                "action_type": "view",
+                                "device": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                                "ip_address": "192.168.1.1",
+                                "timestamp": "2024-10-10T12:34:56Z"
+                            },
+                            {
+                                "id": 2,
+                                "user": "Jane Smith",
+                                "action_type": "update",
+                                "device": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+                                "ip_address": "192.168.1.2",
+                                "timestamp": "2024-10-10T13:45:22Z"
+                            }
+                        ]
+                    }
+                },
+            ),
+        },
+    )
+    def get(self, request):
+        cert_verification_logs = AdminResolutionLog.objects.all()
+        serializer = VerificationLogsSerializer(cert_verification_logs, many=True)
+
+        response = {
+            "message": serializer.data
+        }
+        return Response(data=response, status=status.HTTP_200_OK)
 
 

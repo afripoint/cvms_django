@@ -4,6 +4,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.template.loader import render_to_string
 from django.conf import settings
 from datetime import datetime
+from django.contrib.contenttypes.models import ContentType
 import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,7 +14,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from accounts.models import CustomUser
 from accounts.utils import send_html_email
-from verifications.models import Verification
+from admin_rosolutions.models import AdminResolutionLog
+from verifications.models import Report, Verification
 from verifications.serializer import ReportSerializer, VerificationHistorySerializer
 
 
@@ -122,6 +124,8 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
     def post(self, request):
         cert_num = request.data.get("cert_num")
         user = request.user
+        device = request.META.get('HTTP_USER_AGENT', 'unknown device')
+        ip_address = request.META.get('REMOTE_ADDR')
 
         if not cert_num:
             return Response(
@@ -165,36 +169,17 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
                         "is_duty_paid": matching_certificate.get("payment_status"),
                     },
                 )
-                # search the certificate list
-                # matching_certificate = next(
-                #     (cert for cert in data_list if cert.get("cert_num") == cert_num),
-                #     None,
-                # )
+                
 
-                # if matching_certificate:
-                #     payment_status = matching_certificate.get("payment_status", None)
-
-                #     if payment_status is True:
-                #         response = {
-                #             "certificate_status": "valid",
-                #             "payment_status": "paid",
-                #             "cert_num": matching_certificate.get("cert_num"),
-                #         }
-                #         return Response(data=response, status=status.HTTP_200_OK)
-                #     elif payment_status is False:
-                #         response = {
-                #             "certificate_status": "valid",
-                #             "payment_status": "unpaid",
-                #             "cert_num": matching_certificate.get("cert_num"),
-                #         }
-                #         return Response(data=response, status=status.HTTP_200_OK)
-                # else:
-                #     # If no certificate matches the cert_num
-                #     response = {
-                #         "certificate_status": "Invalid",
-                #         "message": f"No certificate found for cert_num: {cert_num}",
-                #     }
-                #     return Response(data=response, status=status.HTTP_404_NOT_FOUND)
+                 # Log the certificate verification attempt
+                AdminResolutionLog.objects.create(
+                    user=user,
+                    content_type=ContentType.objects.get_for_model(Verification),
+                    object_id=cert_instance.id,
+                    action_type="view report",
+                    device=device,
+                    ip_address=ip_address,
+                )
 
                 response = {
                     "message": "certificate fetch successfully",
@@ -231,17 +216,29 @@ class CreateReportAPIView(APIView):
         now = datetime.now()
         current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         user = request.user
+        device = request.META.get('HTTP_USER_AGENT', 'unknown device')
+        ip_address = request.META.get('REMOTE_ADDR')
         serializer = ReportSerializer(
             data=request.data, context={"request": request, "vin": vin}
         )
 
         if serializer.is_valid():
-            serializer.save()
+            report=serializer.save()
+
+            AdminResolutionLog.objects.create(
+                user=user,
+                content_type=ContentType.objects.get_for_model(Report),
+                object_id=report.id,
+                action_type="report created",
+                device=device,
+                ip_address=ip_address,
+            )
+
             query_type = serializer.validated_data["query_type"]
             recipient_email_admin = "admin@cvmsnigeria.com"
 
             subject = (
-                "New Issue Report Submitted on CVMS — Immediate Attention Requiredt"
+                "New Issue Report Submitted on CVMS — Immediate Attention Required"
             )
 
             message_user = render_to_string(
