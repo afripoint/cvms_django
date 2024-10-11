@@ -7,9 +7,35 @@ from rest_framework.permissions import IsAdminUser
 from .serializers import PermissionSerializer, RolePermissionUpdateSerializer, RoleSerializer
 from .models import Permission
 from roles.models import Role
+from drf_yasg import openapi
 
 
 class PermissionListView(APIView):
+    @swagger_auto_schema(
+        operation_summary="List all permissions",
+        operation_description="Returns a list of all permissions available in the system.",
+        responses={
+            200: openapi.Response(
+                description="A list of permissions",
+                examples={
+                    "application/json": {
+                        "message": [
+                            {
+                                "name": "Create User",
+                                "permission_code": "create_user",
+                                "created_at": "2024-10-10T12:00:00Z"
+                            },
+                            {
+                                "name": "Delete Records",
+                                "permission_code": "delete_records",
+                                "created_at": "2024-10-11T08:00:00Z"
+                            }
+                        ]
+                    }
+                }
+            )
+        }
+    )
     def get(self, request):
         permissions = Permission.objects.all()
         serializer = PermissionSerializer(permissions, many=True)
@@ -20,6 +46,46 @@ class PermissionListView(APIView):
 
 
 class RoleListView(APIView):
+    @swagger_auto_schema(
+        operation_summary="List all roles with permissions",
+        operation_description="Returns a list of all roles and the permissions assigned to each role.",
+        responses={
+            200: openapi.Response(
+                description="A list of roles with permissions",
+                examples={
+                    "application/json": {
+                        "all roles": [
+                            {
+                                "role": "Admin",
+                                "permissions": [
+                                    {
+                                        "name": "Create User",
+                                        "permission_code": "create_user",
+                                        "created_at": "2024-10-10T12:00:00Z"
+                                    },
+                                    {
+                                        "name": "Edit Profile",
+                                        "permission_code": "edit_profile",
+                                        "created_at": "2024-10-11T09:30:00Z"
+                                    }
+                                ]
+                            },
+                            {
+                                "role": "Moderator",
+                                "permissions": [
+                                    {
+                                        "name": "View Users",
+                                        "permission_code": "view_users",
+                                        "created_at": "2024-10-09T11:15:00Z"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            )
+        }
+    )
     def get(self, request):
         roles = Role.objects.all()
         serializer = RoleSerializer(roles, many=True)
@@ -29,18 +95,8 @@ class RoleListView(APIView):
 
 
 class RolePermissionUpdateAPIView(APIView):
-    permission_classes = [IsAdminUser] # Ensure only super admin can update permissions
+    permission_classes = [IsAdminUser]
 
-    # def get(self, request, slug):
-    #     # Get the details of a specific role, including its permissions.
-    #     role = get_object_or_404(Role, slug=slug)
-
-    #     # Serialize the role data, including its permissions
-    #     serializer = RoleSerializer(role)
-
-    #     # Return the role details as a JSON response
-    #     response = {"role": serializer.data}
-    #     return Response(data=response, status=status.HTTP_200_OK)
     @swagger_auto_schema(
         operation_summary="Update Role Permissions (Admin Only)",
         operation_description="""

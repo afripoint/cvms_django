@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from admin_rosolutions.models import AdminResolutionLog
 from verifications.models import Report, ReportFile
 from django.core.validators import MaxLengthValidator
 
@@ -79,3 +80,11 @@ class VerificationsIsuesUpdateSerializer(serializers.ModelSerializer):
                 "Resolution comment cannot be longer than 500 characters."
             )
         return value
+    
+
+class VerificationLogsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdminResolutionLog
+        fields = ('__all__',)
+
+
