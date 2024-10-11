@@ -31,6 +31,7 @@ class VerificationsIsuesSerializer(serializers.ModelSerializer):
             "files",
             "slug",
             "additional_info",
+            "resolution_comment",
             "status",
             "created_at",
             "updated_at",
@@ -53,7 +54,7 @@ class VerificationsIsuesSerializer(serializers.ModelSerializer):
         }
 
 
-class VerificationsIsuesDetailSerializer(serializers.ModelSerializer):
+class VerificationsIsuesUpdateSerializer(serializers.ModelSerializer):
     resolution_comment = serializers.CharField(
         max_length=500,
         validators=[MaxLengthValidator(500)],
