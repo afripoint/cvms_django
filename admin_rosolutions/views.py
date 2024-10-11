@@ -16,7 +16,7 @@ from django.db.models.functions import Cast
 from rest_framework.permissions import IsAuthenticated
 from accounts.models import CustomUser
 from admin_rosolutions.pagination import VerificationReportPagination
-from admin_rosolutions.serializers import VerificationsIsuesDetailSerializer, VerificationsIsuesSerializer
+from admin_rosolutions.serializers import VerificationsIsuesSerializer, VerificationsIsuesUpdateSerializer
 from verifications.models import Verification, Report
 
 
@@ -156,7 +156,7 @@ class VerificationReportUpdateAPIView(APIView):
         PATCH /verification-reports/{slug}/
         ```
         """,
-        request_body=VerificationsIsuesDetailSerializer,
+        request_body=VerificationsIsuesUpdateSerializer,
         responses={
             200: openapi.Response(
                 description="Report updated successfully",
@@ -172,7 +172,7 @@ class VerificationReportUpdateAPIView(APIView):
     )
     def patch(self, request, slug):
         report = get_object_or_404(Report, slug=slug)
-        serializer = VerificationsIsuesDetailSerializer(report, context={"request": request})
+        serializer = VerificationsIsuesUpdateSerializer(report, data=request.data, context={"request": request})
         
         if serializer.is_valid():
             serializer.save()
