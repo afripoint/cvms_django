@@ -31,6 +31,7 @@ from accounts.auth_logs import (
     password_updated_log,
 )
 from accounts.filters import CustomUserFilter
+from accounts.permissions import HasPermission
 from accounts.signals import get_client_ip
 from accounts.tokens import create_jwt_pair_for_user
 from django.utils import timezone
@@ -1337,13 +1338,18 @@ class DeactivateUerPAIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# unveried users list
+# view all user
 class AllUsersList(generics.ListAPIView):
+    permission_classes = [IsAuthenticated, HasPermission]
+    authentication_classes = [JWTAuthentication]
     queryset = CustomUser.objects.all().select_related("profile")
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ["=first_name", "=last_name", "=email_address", "phone_number"]
     pagination_class = AllUsersPagination
+
+    # Set the required permission dynamically for this view
+    required_permission = 'view_users'
 
     @swagger_auto_schema(
         operation_summary="List all users with optional date, first_name, email_address and phone_number  filters",

@@ -1,7 +1,7 @@
+from django.db import models
 from typing import Iterable
 import secrets
 import string
-from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
 from datetime import timedelta
@@ -13,7 +13,6 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 import pyotp
-
 from roles.models import Role
 
 
@@ -171,6 +170,15 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             self.send_ninety_day_email()
             pass
         super().save(*args, **kwargs)
+
+    def has_permission(self, permission_code):
+        """
+        Check if the user has a specific permission code based on their role's permissions.
+        """
+        if self.role:
+            # Check if the user's role has the required permission
+            return self.role.permissions.filter(permission_code=permission_code).exists()
+        return False
 
 
 # activation token
