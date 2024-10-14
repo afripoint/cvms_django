@@ -14,7 +14,7 @@ class AdminResolutionLog(models.Model):
 
     user = models.ForeignKey(CustomUser, related_name="logs", on_delete=models.CASCADE)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
+    object_id = models.CharField(max_length=250)
     content_object = GenericForeignKey('content_type', 'object_id')
     action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES)
     device = models.CharField(max_length=200, blank=True, null=True)

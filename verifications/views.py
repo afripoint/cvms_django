@@ -124,8 +124,8 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
     def post(self, request):
         cert_num = request.data.get("cert_num")
         user = request.user
-        device = request.META.get('HTTP_USER_AGENT', 'unknown device')
-        ip_address = request.META.get('REMOTE_ADDR')
+        device = request.META.get("HTTP_USER_AGENT", "unknown device")
+        ip_address = request.META.get("REMOTE_ADDR")
 
         if not cert_num:
             return Response(
@@ -156,26 +156,23 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
 
                 matching_certificate = data_list[0]
 
-                cert_instance, created = Verification.objects.get_or_create(
+                cert_instance = Verification.objects.create(
                     cert_num=matching_certificate.get("cert_num"),
-                    defaults={
-                        "user": user,
-                        "vin": matching_certificate.get("vin"),
-                        "uuid": matching_certificate.get("UUID"),
-                        "name": f"{matching_certificate.get('user').get('firstname')} {matching_certificate.get('user').get('surname')}",
-                        "email": matching_certificate.get("user_id"),
-                        "make": matching_certificate.get("manufacturer"),
-                        "year": matching_certificate.get("year"),
-                        "is_duty_paid": matching_certificate.get("payment_status"),
-                    },
+                    user=user,
+                    vin=matching_certificate.get("vin"),
+                    uuid=matching_certificate.get("UUID"),
+                    name=f"{matching_certificate.get('user').get('firstname')} {matching_certificate.get('user').get('surname')}",
+                    email=matching_certificate.get("user_id"),
+                    make=matching_certificate.get("manufacturer"),
+                    year=matching_certificate.get("year"),
+                    is_duty_paid=matching_certificate.get("payment_status"),
                 )
-                
 
-                 # Log the certificate verification attempt
+                # Log the certificate verification attempt
                 AdminResolutionLog.objects.create(
                     user=user,
                     content_type=ContentType.objects.get_for_model(Verification),
-                    object_id=cert_instance.id,
+                    object_id=cert_instance.uuid,
                     action_type="view report",
                     device=device,
                     ip_address=ip_address,
@@ -184,7 +181,7 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
                 response = {
                     "message": "certificate fetch successfully",
                     "data": data_list,
-                    "slug": cert_instance.uuid,
+                    "slug": cert_instance.slug,
                 }
 
                 return Response(
@@ -212,18 +209,19 @@ class CreateReportAPIView(APIView):
         # request_body=ReportSerializer,
     )
     def post(self, request, slug):
-        vin = get_object_or_404(Verification, uuid=slug)
+        vin = get_object_or_404(Verification, slug=slug)
+
         now = datetime.now()
         current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         user = request.user
-        device = request.META.get('HTTP_USER_AGENT', 'unknown device')
-        ip_address = request.META.get('REMOTE_ADDR')
+        device = request.META.get("HTTP_USER_AGENT", "unknown device")
+        ip_address = request.META.get("REMOTE_ADDR")
         serializer = ReportSerializer(
             data=request.data, context={"request": request, "vin": vin}
         )
 
         if serializer.is_valid():
-            report=serializer.save()
+            report = serializer.save()
 
             AdminResolutionLog.objects.create(
                 user=user,

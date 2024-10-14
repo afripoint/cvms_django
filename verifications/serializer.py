@@ -3,13 +3,18 @@ from .models import Report, ReportFile, Verification
 
 
 class ReportFileSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
     class Meta:
         model = ReportFile
-        fields = ("file",)
+        fields = ("file", "file_url",)
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.file.url)
 
 
 class ReportSerializer(serializers.ModelSerializer):
-    files = ReportFileSerializer(many=True, required=False)
+    files = ReportFileSerializer(many=True, required=False, context={'request': None})
     reporting_officer = serializers.SerializerMethodField(read_only=True)
     vin = serializers.SerializerMethodField(read_only=True)
     query_type = serializers.ChoiceField(

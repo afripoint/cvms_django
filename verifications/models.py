@@ -6,11 +6,12 @@ from accounts.models import CustomUser
 
 class Verification(models.Model):
     user = models.ForeignKey(CustomUser, related_name="verification", on_delete=models.CASCADE)
-    uuid = models.CharField(max_length=50, unique=True)
-    vin = models.CharField(max_length=50, unique=True)
+    uuid = models.CharField(max_length=50)
+    vin = models.CharField(max_length=50)
     name = models.CharField(max_length=50, blank=False, null=True)
     cert_num = models.CharField(max_length=50, blank=False, null=True)
     email = models.CharField(max_length=50, blank=False, null=True)
+    slug = models.CharField(max_length=50, blank=False, null=True, unique=True)
     make = models.CharField(max_length=50, blank=False, null=True)
     year = models.CharField(max_length=50, blank=False, null=True)
     is_duty_paid = models.BooleanField(blank=False, null=True)
@@ -23,6 +24,13 @@ class Verification(models.Model):
         verbose_name = "verification"
         verbose_name_plural = "verifications"
         ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.uuid) + str(uuid.uuid4())
+        super().save(*args, **kwargs)
+
+
 
 
 class Report(models.Model):

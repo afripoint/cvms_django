@@ -10,7 +10,7 @@ urlpatterns = [
         name="varify-certificate",
     ),
     path(
-        "create-report/<uuid:slug>/",
+        "create-report/<slug:slug>/",
         CreateReportAPIView.as_view(),
         name="create-report",
     ),
