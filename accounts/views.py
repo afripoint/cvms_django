@@ -782,6 +782,7 @@ class LoginAPIView(APIView):
                     "last_name": user.last_name,
                     "role": user.role.role,
                     "role_slug": user.role.slug,
+                    "permissions": [permission.permission_code for permission in user.role.permissions.all()],
                 },
                 
             },
