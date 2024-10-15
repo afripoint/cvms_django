@@ -103,8 +103,8 @@ class PermissionCreateAPIView(APIView):
 
 
 class RoleListAPIView(APIView):
-    # permission_classes = [IsAuthenticated, IsAdminUser]
-    # authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="List all roles with permissions",
@@ -191,6 +191,8 @@ class RoleDetailAPIView(APIView):
             "all roles": serializer.data,
         }
         return Response(data=response, status=status.HTTP_200_OK)
+    
+
 
 
 class CreatRolePermission(APIView):
