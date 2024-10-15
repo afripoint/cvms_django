@@ -73,7 +73,7 @@ from .models import (
     PasswordResetToken,
     Profile,
 )
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 
 class UserCreationRequestAPIView(APIView):
@@ -1314,8 +1314,8 @@ class LogoutAPIView(APIView):
 
 
 # deactivating a user
-class DeactivateUerPAIView(APIView):
-    permission_classes = [IsAuthenticated]
+class DeactivateUserAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
     authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
@@ -1340,7 +1340,7 @@ class DeactivateUerPAIView(APIView):
 
 # view all user
 class AllUsersList(generics.ListAPIView):
-    permission_classes = [IsAuthenticated, HasPermission]
+    permission_classes = [IsAuthenticated, IsAdminUser]
     authentication_classes = [JWTAuthentication]
     queryset = CustomUser.objects.all().select_related("profile")
     serializer_class = CustomUserSerializer
@@ -1349,7 +1349,7 @@ class AllUsersList(generics.ListAPIView):
     pagination_class = AllUsersPagination
 
     # Set the required permission dynamically for this view
-    required_permission = 'view_users'
+    # required_permission = 'view_users'
 
     @swagger_auto_schema(
         operation_summary="List all users with optional date, first_name, email_address and phone_number  filters",
@@ -1424,6 +1424,8 @@ class AllUsersList(generics.ListAPIView):
 
 # User-details
 class UserDetailView(GenericAPIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     queryset = CustomUser.objects.all().select_related("profile")
     serializer_class = CustomUserSerializer
     lookup_field = "slug"
@@ -1446,6 +1448,8 @@ class UserDetailView(GenericAPIView):
 
 # all user profile
 class AllProfileView(GenericAPIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
     filter_backends = [filters.SearchFilter]
@@ -1481,6 +1485,8 @@ class AllProfileView(GenericAPIView):
 
 
 class AllProfileDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     @swagger_auto_schema(
         operation_summary="profile detail API enpoint",
         operation_description="""
@@ -1497,16 +1503,18 @@ class AllProfileDetailAPIView(APIView):
 
         return Response(data=response, status=status.HTTP_200_OK)
 
-
-class UserProfileUpdateAPIView(APIView):
+# update user profile - admin
+class UserProfileUpdateAdminAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     @swagger_auto_schema(
-        operation_summary="profile update API enpoint",
+        operation_summary="profile update by admin API enpoint",
         operation_description="""
-        This endpoint retrieves and update a user profile.
+        This endpoint retrieves and update a user profile by admin.
         """,
         request_body=ProfileSerializer,
     )
-    def put(self, request, slug):
+    def patch(self, request, slug):
         user_profile = get_object_or_404(Profile, slug=slug)
         serializer = ProfileSerializer(user_profile, data=request.data)
 
@@ -1518,3 +1526,56 @@ class UserProfileUpdateAPIView(APIView):
             }
             return Response(data=response, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+# user profile view
+class UserProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    @swagger_auto_schema(
+        operation_summary="Profile view  of a logged in user",
+        operation_description="""
+        This endpoint the profile of a logged in user.
+        """,
+        request_body=ProfileSerializer,
+    )
+    def get(self, request, slug):
+        user = request.user
+        user_profile = get_object_or_404(Profile, slug=slug)
+        serializer = ProfileSerializer(user, user_profile)
+
+        response = {
+            "message": "logged in user profile",
+            "data": serializer.data,
+        }
+        return Response(data=response, status=status.HTTP_200_OK)
+
+
+# logged in user update profile
+class UserProfileUpdateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    @swagger_auto_schema(
+        operation_summary="Profile update of a logged in user",
+        operation_description="""
+        This endpoint updated the profile of a logged in user.
+        """,
+        request_body=ProfileSerializer,
+    )
+    def patch(self, request, slug):
+        user = request.user
+        profile = get_object_or_404(Profile, slug=slug)
+        serializer = ProfileSerializer(user, profile, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+
+            response = {
+                "message": "profile updated successfully",
+                "data": serializer.data
+            }
+
+            return Response(data=response, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+

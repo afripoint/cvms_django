@@ -33,7 +33,7 @@ class RoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Role
-        fields = ['role', 'permissions']
+        fields = ['role', 'permissions', 'slug',]
 
 
 
