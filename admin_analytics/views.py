@@ -5,13 +5,17 @@ from rest_framework.views import APIView
 from drf_yasg import openapi
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.generics import ListAPIView
 from .utils import make_external_api_request
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+
 
 class AccountSearchRatesAPIListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     """
     View to list the results from the external API
     """
@@ -34,6 +38,8 @@ class AccountSearchRatesAPIListView(APIView):
 
 
 class SignUpSearchComparisonAPIListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     """
     View to list the results from the external API
     """
@@ -55,6 +61,8 @@ class SignUpSearchComparisonAPIListView(APIView):
     
 
 class VinSearchGrowthAPIListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     """
     View to list the results from the external API
     """
@@ -77,6 +85,8 @@ class VinSearchGrowthAPIListView(APIView):
 
 
 class RegistrationAPIListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     """
     View to list the results from the external API
     """
@@ -98,6 +108,8 @@ class RegistrationAPIListView(APIView):
 
 
 class TopAccountsAPIListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     """
     View to list the results from the external API
     """
@@ -118,6 +130,8 @@ class TopAccountsAPIListView(APIView):
         return Response(data, status=status.HTTP_200_OK)
     
 class AccountsDistributionAPIListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     """
     View to list the results from the external API
     """
