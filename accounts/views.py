@@ -780,7 +780,10 @@ class LoginAPIView(APIView):
                 "user": {
                     "first_name": user.first_name,
                     "last_name": user.last_name,
+                    "role": user.role.role,
+                    "role_slug": user.role.slug,
                 },
+                
             },
             status=status.HTTP_200_OK,
         )
@@ -1538,7 +1541,6 @@ class UserProfileAPIView(APIView):
         operation_description="""
         This endpoint the profile of a logged in user.
         """,
-        request_body=ProfileSerializer,
     )
     def get(self, request, slug):
         user = request.user
