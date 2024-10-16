@@ -233,3 +233,14 @@ STORAGES = {
 #     # Use modals instead of popups
 #     "related_modal_active": False,
 # }
+
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'api_key': {
+            'type': 'apiKey',
+            'in': 'header',
+            'name': 'Authorization'
+        }
+    },
+}
