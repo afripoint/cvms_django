@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./docker/staging/django/Dockerfile
+    image: cvms_django_dev_image
+    container_name: cvms_django_dev_container
+    volumes:
+      - ./staticfiles:/app/staticfiles
+    ports:
+      - "8000:8000"
+    env_file:
+      - .envs/.staging/.postgres
+    depends_on:
+      - postgres
+    networks:
+      - cvms_docker_network
+
+  postgres:
+    image: postgres:15-bullseye
+    restart: always
+    volumes:
+      - production_postgres_data:/var/lib/postgresql/data
+      - production_postgres_data_backups:/backups
+    env_file:
+      - .envs/.staging/.postgres
+    networks:
+      - cvms_docker_network
+
+networks:
+  cvms_docker_network:
+    external: true
+
+volumes:
+  production_postgres_data: {}
+  production_postgres_data_backups: {}
