@@ -63,9 +63,7 @@ class VerificationsIsuesUpdateSerializer(serializers.ModelSerializer):
             "max_length": "The resolution comment must not exceed 500 characters."
         },
     )
-    status = serializers.ChoiceField(
-        choices=Report.STATUS_CHOICES, default="pending"
-    )
+    status = serializers.ChoiceField(choices=Report.STATUS_CHOICES, default="pending")
 
     class Meta:
         model = Report
@@ -80,11 +78,9 @@ class VerificationsIsuesUpdateSerializer(serializers.ModelSerializer):
                 "Resolution comment cannot be longer than 500 characters."
             )
         return value
-    
+
 
 class VerificationLogsSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminResolutionLog
-        fields = ('__all__',)
-
-
+        fields = "__all__"

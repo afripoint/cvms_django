@@ -267,6 +267,7 @@ class CVMSAuthLog(models.Model):
     event_type = models.CharField(max_length=50, choices=EVENT_TYPE_CHOICES)
     timestamp = models.DateTimeField(auto_now=True)
     device_details = models.TextField(null=True, blank=True)
+    status_code = models.IntegerField()
     location = models.CharField(max_length=255, null=True, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     reason = models.TextField(null=True, blank=True)
