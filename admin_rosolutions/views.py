@@ -15,7 +15,7 @@ from drf_yasg import openapi
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import status
 from django.db.models.functions import Cast
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from accounts.models import CustomUser
 from admin_rosolutions.models import AdminResolutionLog
 from admin_rosolutions.pagination import VerificationReportPagination
@@ -24,8 +24,8 @@ from verifications.models import Verification, Report
 
 
 class VerificationReportAPIView(generics.ListAPIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
+    # permission_classes = [IsAuthenticated, IsAdminUser]
+    # authentication_classes = [JWTAuthentication]
     queryset = Report.objects.all()
     serializer_class = VerificationsIsuesSerializer
     filter_backends = [filters.SearchFilter]
@@ -83,6 +83,7 @@ class VerificationReportAPIView(generics.ListAPIView):
         start_date = self.request.query_params.get("start_date")
         end_date = self.request.query_params.get("end_date")
         status = self.request.query_params.get("status")
+        query_type = self.request.query_params.get("query_type")
 
         # If start_date is provided, filter the queryset from that date onwards
         if start_date:
@@ -99,6 +100,11 @@ class VerificationReportAPIView(generics.ListAPIView):
         # Filter by request_status if provided
         if status:
             queryset = queryset.filter(status=status)
+
+
+        # Filter by query_type if provided
+        if query_type:
+            queryset = queryset.filter(query_type=query_type)
 
         return queryset
 
