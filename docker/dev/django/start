@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+python manage.py makemigrations --no-input
+python /app/manage.py migrate
+python /app/manage.py collectstatic --noinput
+python create_superuser.py --noinput
+exec python manage.py runserver 0.0.0.0:8000
+
+# exec /usr/local/bin/gunicorn authors_api.wsgi --bind 0.0.0.0:1998 --chdir=/app
