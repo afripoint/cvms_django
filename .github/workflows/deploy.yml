@@ -21,13 +21,13 @@ jobs:
           USERNAME: ${{ secrets.DOCKER_USERNAME }}
           PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKERFILE: "./docker/dev/django/Dockerfile"
-          IMAGE_NAME: "afripoint/cvms_django_admin_image"
+          IMAGE_NAME: "afripoint/cvms_django_admin_dev_image"
           LATEST: "true"
 
       - name: Deploy to server
         uses: appleboy/ssh-action@master
         with:
-          host: 62.84.178.94
+          host: 161.97.86.134
           username: root
           port: 22
           password: kzQdG6Vw4vJQx56obn885jCnuP65
