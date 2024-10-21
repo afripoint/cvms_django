@@ -7,7 +7,7 @@ on:
 name: Deploy backend-end service
 jobs:
   deploy:
-    name: Deploy to Test Environment
+    name: Deploy to Dev Environment
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,9 +33,9 @@ jobs:
           password: kzQdG6Vw4vJQx56obn885jCnuP65
           script: |
             cd /root/cvmsadmin/cvmsdjangoadmin_server_configuration
-            git checkout main
+            git checkout dev2
             git reset --hard HEAD
-            git pull origin main
-            docker stack deploy -c /root/cvmsadmin/cvmsdjangoadmin_server_configuration/docker-compose.yml cvmsadmin 
+            git pull origin dev2
+            docker stack deploy -c /root/cvmsadmin/cvmsdjangoadmin_server_configuration/docker-compose.yml cvmsdevstack 
 
           
