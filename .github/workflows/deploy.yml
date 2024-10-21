@@ -1,0 +1,41 @@
+on:
+  push:
+    branches:
+      - dev2
+
+
+name: Deploy backend-end service
+jobs:
+  deploy:
+    name: Deploy to Dev Environment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Docker Build & Push Django Backend to Docker Hub
+        uses: opspresso/action-docker@master
+        with:
+          args: --docker
+        env:
+          USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKERFILE: "./docker/dev/django/Dockerfile"
+          IMAGE_NAME: "afripoint/cvms_django_admin_dev_image"
+          LATEST: "true"
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: 161.97.86.134
+          username: root
+          port: 22
+          password: kzQdG6Vw4vJQx56obn885jCnuP65
+          script: |
+            cd /root/cvmsadmin/cvmsdjangoadmin_server_configuration
+            git checkout dev2
+            git reset --hard HEAD
+            git pull origin dev2
+            docker stack deploy -c /root/cvmsadmin/cvmsdjangoadmin_server_configuration/docker-compose.yml cvmsdevstack 
+
+          
