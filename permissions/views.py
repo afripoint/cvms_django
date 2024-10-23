@@ -4,6 +4,9 @@ from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
+
+from accounts.models import CVMSAuthLog
+from accounts.signals import get_client_ip
 from .serializers import (
     PermissionLogSerializer,
     PermissionSerializer,
@@ -56,15 +59,6 @@ class PermissionCreateAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
     authentication_classes = [JWTAuthentication]
 
-    def get_client_ip(self, request):
-        """Helper method to extract client IP from request"""
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(",")[0]
-        else:
-            ip = request.META.get("REMOTE_ADDR")
-        return ip
-
     @swagger_auto_schema(
         operation_summary="Create a new permission",
         operation_description="Creates a new permission with the provided name and permission_code.",
@@ -88,12 +82,16 @@ class PermissionCreateAPIView(APIView):
         if serializer.is_valid():
             serializer.save()
 
-            PermissionsLog.objects.create(
-                created_by=request.user,
+            CVMSAuthLog.objects.create(
+                user=request.user,
                 event_type="create permission",
-                description="A new permission was created",
-                ip_address=self.get_client_ip(request),
+                device_details=request.META.get("HTTP_USER_AGENT"),
+                status_code=200,
+                ip_address=get_client_ip(request),
+                reason=f"A new permisssion was created by {request.user}",
+                additional_info=None,
             )
+
             response = {
                 "message": "Permission created",
                 "data": serializer.data,
@@ -191,22 +189,11 @@ class RoleDetailAPIView(APIView):
             "all roles": serializer.data,
         }
         return Response(data=response, status=status.HTTP_200_OK)
-    
-
 
 
 class CreatRolePermission(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
     authentication_classes = [JWTAuthentication]
-
-    def get_client_ip(self, request):
-        """Helper method to extract client IP from request"""
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(",")[0]
-        else:
-            ip = request.META.get("REMOTE_ADDR")
-        return ip
 
     @swagger_auto_schema(
         operation_summary="Create a new role",
@@ -241,12 +228,16 @@ class CreatRolePermission(APIView):
         if serializer.is_valid():
             serializer.save()
 
-            PermissionsLog.objects.create(
-                created_by=request.user,
+            CVMSAuthLog.objects.create(
+                user=request.user,
                 event_type="create role",
-                description="A new role was created",
-                ip_address=self.get_client_ip(request),
+                device_details=request.META.get("HTTP_USER_AGENT"),
+                status_code=200,
+                ip_address=get_client_ip(request),
+                reason="A new role and permisssion was created",
+                additional_info=None,
             )
+
             response = {
                 "message": "Role and permissions created successfully",
                 "data": serializer.data,
@@ -258,15 +249,6 @@ class CreatRolePermission(APIView):
 class RoleUpdateAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
     authentication_classes = [JWTAuthentication]
-
-    def get_client_ip(self, request):
-        """Helper method to extract client IP from request"""
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(",")[0]
-        else:
-            ip = request.META.get("REMOTE_ADDR")
-        return ip
 
     @swagger_auto_schema(
         operation_summary="Update a role",
@@ -304,11 +286,14 @@ class RoleUpdateAPIView(APIView):
         if serializer.is_valid():
             serializer.save()
 
-            PermissionsLog.objects.create(
-                created_by=request.user,
+            CVMSAuthLog.objects.create(
+                user=request.user,
                 event_type="update role",
-                description=f"A role - {role.slug} was created",
-                ip_address=self.get_client_ip(request),
+                device_details=request.META.get("HTTP_USER_AGENT"),
+                status_code=200,
+                ip_address=get_client_ip(request),
+                reason=f"A role was updated by {request.user}",
+                additional_info=None,
             )
             response = {
                 "Role updated successfully": serializer.data,
@@ -320,15 +305,6 @@ class RoleUpdateAPIView(APIView):
 class RoleDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
     authentication_classes = [JWTAuthentication]
-
-    def get_client_ip(self, request):
-        """Helper method to extract client IP from request"""
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(",")[0]
-        else:
-            ip = request.META.get("REMOTE_ADDR")
-        return ip
 
     @swagger_auto_schema(
         operation_summary="Delete a role",
@@ -342,12 +318,15 @@ class RoleDeleteAPIView(APIView):
         role = get_object_or_404(Role, slug=slug)
         role.delete()
 
-        PermissionsLog.objects.create(
-            created_by=request.user,
-            event_type="delete role",
-            description=f"A role - {role.slug} was deleted",
-            ip_address=self.get_client_ip(request),
-        )
+        CVMSAuthLog.objects.create(
+                user=request.user,
+                event_type="delete role",
+                device_details=request.META.get("HTTP_USER_AGENT"),
+                status_code=200,
+                ip_address=get_client_ip(request),
+                reason=f"A role was deleted by {request.user}",
+                additional_info=None,
+            )
         response = {"message": "Role deleted successfully"}
         return Response(data=response, status=status.HTTP_204_NO_CONTENT)
 
@@ -359,15 +338,10 @@ class PermissionLogAPIView(APIView):
     @swagger_auto_schema(
         operation_summary="List all permisssions logs",
         operation_description="List all logs for permission.",
-
-        
     )
     def get(self, request):
         permission_log = PermissionsLog.objects.all()
         serializer = PermissionLogSerializer(permission_log, many=True)
 
-        response = {
-            "message": "All Permission logs",
-            "data": serializer.data
-        }
+        response = {"message": "All Permission logs", "data": serializer.data}
         return Response(data=response, status=status.HTTP_200_OK)

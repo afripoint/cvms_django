@@ -50,7 +50,6 @@ from data_uploads.pagination import (
     ProfilesPegination,
 )
 from django_filters.rest_framework import DjangoFilterBackend
-from logs.models import Log
 from .serializers import (
     ChangeDefaultPassword,
     CustomUserSerializer,

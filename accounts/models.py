@@ -74,7 +74,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=255)
     default_password = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=255)
-    message_choice = models.CharField(max_length=50, choices=MESSAGE_CHOICES, default='sms')
+    message_choice = models.CharField(
+        max_length=50, choices=MESSAGE_CHOICES, default="sms"
+    )
     email_address = models.EmailField(max_length=254, unique=True)
     login_attempts = models.IntegerField(default=0)
     last_login_attempt = models.DateTimeField(null=True, blank=True)
@@ -134,15 +136,17 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             return False
         totp = pyotp.TOTP(self.totp_secret)
         return totp.verify(token)
-    
-     # Checking if the user has a specific permission
+
+    # Checking if the user has a specific permission
     def has_permission(self, permission_code):
         """
         Check if the user has a specific permission based on their assigned role.
         """
         if self.role:
             # Check if the role has the specific permission
-            return self.role.permissions.filter(permission_code=permission_code).exists()
+            return self.role.permissions.filter(
+                permission_code=permission_code
+            ).exists()
         return False
 
     # Generate a secure random password
@@ -177,7 +181,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         """
         if self.role:
             # Check if the user's role has the required permission
-            return self.role.permissions.filter(permission_code=permission_code).exists()
+            return self.role.permissions.filter(
+                permission_code=permission_code
+            ).exists()
         return False
 
 
@@ -232,42 +238,32 @@ class Profile(models.Model):
 
 # Authentication logging
 class CVMSAuthLog(models.Model):
-    EVENT_TYPE_CHOICES = [
-        ("LOGIN_SUCCESS", "Successful Login"),
-        ("LOGIN_FAILED", "Failed Login"),
-        ("ACCOUNT LOCKED", "Account Locked"),
-        ("LOGOUT", "Successful Logout"),
-        ("PASSWORD UPDATED", "Password Updated"),
-        ("SESSION_TIMEOUT", "Session Timeout"),
-        ("SESSION_CREATION", "Session Creation"),
-        ("SESSION_TERMINATION", "Session Termination"),
-        ("USER_CREATION", "User Account Creation"),
-        ("USER_DELETION", "User Account Deletion"),
-        ("ROLE_CHANGE", "User Role Change"),
-        ("CONFIG_CHANGE", "Configuration Change"),
-        ("FEATURE_TOGGLE", "Feature Toggle"),
-        ("LOG_PURGE", "Log Purge"),
-        ("AUDIT_ACCESS", "Audit Log Access"),
-        ("DATA_QUERY", "Data Query"),
-        ("BULK_EXPORT", "Bulk Data Export"),
-        ("DATA_MODIFICATION", "Data Modification"),
-        ("DATA_DELETION", "Data Deletion"),
-        ("UNAUTHORIZED_ACCESS", "Unauthorized Access Attempt"),
-        ("SECURITY_BREACH", "Security Breach Detected"),
-        ("POLICY_VIOLATION", "Policy Violation"),
-        ("CRITICAL_ERROR", "Critical Error"),
-        ("WARNING", "Warning"),
-        ("DOWNTIME", "System Downtime"),
-        ("UPTIME", "System Uptime"),
-        ("REGULATORY_AUDIT", "Regulatory Audit"),
-        ("COMPLIANCE_REPORT", "Compliance Report"),
-        ("DATA_RETENTION", "Data Retention Event"),
-    ]
+    EVENT_TYPE_CHOICES = (
+        ("login success", "Login Success"),
+        ("failed login", "Failed Login"),
+        ("lock account", "Lock Account"),
+        ("account locked", "Account Locked"),
+        ("invalid password", "Invalid Password"),
+        ("inactive user", "Inactive User"),
+        ("logout", "Logout"),
+        ("password updated", "Password Updated"),
+        ("session timeout", "Session Timeout"),
+        ("user creation", "User Creation"),
+        ("user deletion", "User Deletion"),
+        ("update role", "Update Role"),
+        ("create role", "Create Role"),
+        ("create permission", "Create Permission"),
+        ("delete role", "Delete Role"),
+        ("unauthorized access", "Unauthorized Access"),
+        ("critical error", "Critical Error"),
+        ("warning", "Warning"),
+        ("downtime", "Downtime"),
+    )
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     event_type = models.CharField(max_length=50, choices=EVENT_TYPE_CHOICES)
     timestamp = models.DateTimeField(auto_now=True)
     device_details = models.TextField(null=True, blank=True)
-    status_code = models.IntegerField()
+    status_code = models.IntegerField(null=True, blank=True)
     location = models.CharField(max_length=255, null=True, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     reason = models.TextField(null=True, blank=True)

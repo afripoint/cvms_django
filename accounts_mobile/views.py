@@ -13,8 +13,9 @@ from accounts.auth_logs import (
     login_successful_log,
     password_updated_log,
 )
-from accounts.models import CustomUser
+from accounts.models import CVMSAuthLog, CustomUser
 from accounts.serializers import LoginSerializer
+from accounts.signals import get_client_ip
 from accounts.tokens import create_jwt_pair_for_user
 from django.contrib.auth import authenticate
 from rest_framework import status
@@ -151,6 +152,16 @@ class LoginMobileAPIView(APIView):
         if user.login_attempts >= 3 and not user.is_active:
             if user.last_login_attempt:
                 locked_account_log(request, user)
+                # create a an audit log here
+                CVMSAuthLog.objects.create(
+                    user=user,
+                    event_type="lock account",
+                    device_details=request.META.get("HTTP_USER_AGENT"),
+                    status_code=400,
+                    ip_address=get_client_ip(request),
+                    reason="Account has been locked",
+                    additional_info=None,
+                )
                 return Response(
                     {
                         "message": "User account is locked. click on forgot password to unlock account"
@@ -161,17 +172,30 @@ class LoginMobileAPIView(APIView):
         if not user.check_password(password):
             user.unsuccessful_login_attempt()
             login_failed_log(request, user, reason="Invalid password")
+            CVMSAuthLog.objects.create(
+                    user=user,
+                    event_type="invalid password",
+                    device_details=request.META.get("HTTP_USER_AGENT"),
+                    status_code=400,
+                    ip_address=get_client_ip(request),
+                    reason="Invalid or incorrect passord",
+                    additional_info=None,
+                )
             return Response(
                 {"message": "Incorrect password"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Check if the account is inactive
         if not user.is_active:
-            login_failed_log(
-                request,
-                user,
-                reason="Inactive user trying to logging without activation",
-            )
+            CVMSAuthLog.objects.create(
+                    user=user,
+                    event_type="inactive user",
+                    device_details=request.META.get("HTTP_USER_AGENT"),
+                    status_code=400,
+                    ip_address=get_client_ip(request),
+                    reason="Inactive user trying to logging without activation",
+                    additional_info=None,
+                )
             return Response(
                 {
                     "message": "User account is not active. Click on the link in your email to activate your account."
@@ -198,6 +222,15 @@ class LoginMobileAPIView(APIView):
             login_failed_log(
                 request, user, reason="unauthenticated user or invalid credentials"
             )
+            CVMSAuthLog.objects.create(
+                    user=user,
+                    event_type="invalid password",
+                    device_details=request.META.get("HTTP_USER_AGENT"),
+                    status_code=400,
+                    ip_address=get_client_ip(request),
+                    reason="invalid credentials or password",
+                    additional_info=None,
+                )
             return Response(
                 {"message": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -205,7 +238,15 @@ class LoginMobileAPIView(APIView):
         # Generate tokens and return user info
         tokens = create_jwt_pair_for_user(authenticated_user)
         user.successful_login_attempt()
-        login_successful_log(request, user)
+        CVMSAuthLog.objects.create(
+                    user=user,
+                    event_type="login success",
+                    device_details=request.META.get("HTTP_USER_AGENT"),
+                    status_code=200,
+                    ip_address=get_client_ip(request),
+                    reason="User logged in successfully",
+                    additional_info=None,
+                )
         return Response(
             {
                 "message": "Login successfully",
@@ -525,7 +566,7 @@ class SetNewPasswordMobileAPIView(APIView):
             200: "Password updated successfully.",
             400: "Invalid request data or user not found.",
             403: "User not authorized to reset the password.",
-        }
+        },
     )
     def patch(self, request, slug):
         serializer = SetNewPasswordMobileSerializer(data=request.data)
