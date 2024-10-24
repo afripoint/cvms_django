@@ -1,0 +1,22 @@
+services:
+  api: &api
+    build:
+      context: .
+      dockerfile: ./docker/local/django/Dockerfile
+    image: cvms_django_dev_image
+    container_name: cvms_django_dev_container
+    volumes:
+      - .:/app:z
+      - ./staticfiles:/app/staticfiles
+    ports:
+      - "8000:8000"
+    env_file:
+      - .envs/.local/.django
+      - .envs/.local/.postgres
+    command: /entrypoint
+    networks:
+      - cvms_docker_network
+
+networks:
+  cvms_docker_network:
+    external: true
