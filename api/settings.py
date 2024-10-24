@@ -26,7 +26,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -46,6 +45,9 @@ INSTALLED_APPS = [
     "permissions",
     "accounts_mobile",
     "products",
+    "admin_rosolutions",
+    "admin_analytics",
+    "tracker",
     # third party packages
     "drf_yasg",
     "rest_framework",
@@ -98,12 +100,12 @@ WSGI_APPLICATION = "api.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#     }
-# }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
+}
 
 DATABASES = {
     "default": {
@@ -248,3 +250,10 @@ ADMINS = [
 #     # Use modals instead of popups
 #     "related_modal_active": False,
 # }
+
+
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "api_key": {"type": "apiKey", "in": "header", "name": "Authorization"}
+    },
+}

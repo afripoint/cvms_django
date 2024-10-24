@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 import re
 from departments.models import Command, Department, Rank, Zone
 from permissions.models import Permission
+
 # from permissions.serializers import PermissionSerializer
 from permissions.serializers import PermissionSerializer
 from roles.models import Role
@@ -33,8 +34,11 @@ class RoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Role
-        fields = ['role', 'permissions']
-
+        fields = [
+            "role",
+            "permissions",
+            "slug",
+        ]
 
 
 class CustomUserSerializer(serializers.ModelSerializer):
@@ -176,9 +180,15 @@ class ResetPasswordSerializer(serializers.ModelSerializer):
 
 
 # Login serializer
-class LoginSerializer(serializers.Serializer):
+class LoginSerializer(serializers.ModelSerializer):
     email_address = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True)
+    role = RoleSerializer(read_only=True)
+
+    class Meta:
+        model = CustomUser
+        fields = ("email_address", "password", "role")
+        read_only_fields = ("role",)
 
     # No business logic needed here, just ensure the fields are present and valid
     def validate(self, data):
@@ -243,9 +253,7 @@ class UserCreationRequestSerializer(serializers.Serializer):
     zone = serializers.CharField(max_length=50, min_length=2, required=True)
     phone_number = serializers.CharField(max_length=50, min_length=2, required=True)
     role = serializers.SlugRelatedField(
-        queryset=Role.objects.all(),
-        slug_field='role',
-        required=True
+        queryset=Role.objects.all(), slug_field="role", required=True
     )
 
     staff_id = serializers.CharField(write_only=True, required=False)
@@ -276,23 +284,6 @@ class UserCreationRequestSerializer(serializers.Serializer):
 
         return value
 
-
-    # class Meta:
-    #     model = CustomUser
-    #     fields = [
-    #         "first_name",
-    #         "last_name",
-    #         "staff_id",
-    #         "email_address",
-    #         "command",
-    #         "department",
-    #         "role",
-    #         "rank",
-    #         "zone",
-    #         "phone_number",
-    #         "password",
-    #     ]
-
     def validate_email_address(self, value):
         if CustomUser.objects.filter(email_address=value).exists():
             raise serializers.ValidationError(
@@ -310,7 +301,7 @@ class UserCreationRequestSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         # extract the related forien key data
-        command = validated_data.pop("command").strip()
+        command = validated_data.pop("command")
         department = validated_data.pop("department")
         rank = validated_data.pop("rank")
         zone = validated_data.pop("zone")
@@ -333,7 +324,6 @@ class UserCreationRequestSerializer(serializers.Serializer):
 
         user.role = role
 
-
         user.save()
 
         # Update the profile with the provided data (Profile should already exist due to the signal)
@@ -347,6 +337,7 @@ class UserCreationRequestSerializer(serializers.Serializer):
         profile.save()
 
         return user
+
 
 class GrantAccessSerializer(serializers.ModelSerializer):
     is_verified = serializers.BooleanField()
@@ -407,5 +398,3 @@ class CVMSAuthLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = CVMSAuthLog
         fields = "__all__"
-
-
