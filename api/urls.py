@@ -44,6 +44,7 @@ urlpatterns = [
     path("products/", include("products.urls")),
     path("admin-resolution/", include("admin_rosolutions.urls")),
     path("analytics/", include("admin_analytics.urls")),
+    path("tracker/", include("tracker.urls")),
 ]
 
 

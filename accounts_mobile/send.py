@@ -39,6 +39,7 @@ def send_otp(phone_number, first_name):
 
 # Sending OTP with whatsapp
 
+
 def send_OTP_whatsapp(phone_number, otp_code, expiration_minutes):
     """
     Send OTP to a phone number via whatsapp using Sendchamp API.
@@ -50,7 +51,9 @@ def send_OTP_whatsapp(phone_number, otp_code, expiration_minutes):
         "recipient": phone_number,
         "template_code": "c05fc422-23c5-4d28-9199-76dbae2c46e2",
         "type": "template",
-        "custom_data": {"body": {"1": phone_number, "2": otp_code, "3": str(expiration_minutes)}},
+        "custom_data": {
+            "body": {"1": phone_number, "2": otp_code, "3": str(expiration_minutes)}
+        },
     }
     headers = {
         "accept": "application/json",
@@ -69,3 +72,32 @@ def send_OTP_whatsapp(phone_number, otp_code, expiration_minutes):
     except requests.RequestException as e:
         return {"error": str(e)}
 
+
+def send_message(phone_number, message):
+    """
+    Send message to a phone number via SMS through sendchamp API.
+    """
+    url = f"{SENDCHAMP_BASE_URL}/sms/send"
+
+    payload = {
+        "to": [phone_number],
+        "message": message,
+        "sender_name": "DAlert",
+        "route": "international",
+    }
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": f"Bearer {SENDCHAMP_SECRET_KEY}",
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response_data = response.json()
+        print(f"Status Code: {response.status_code}, Response: {response_data}")
+        if response.status_code == 200:
+            return response_data
+        else:
+            return {"error": response_data.get("message", "Failed to send message")}
+    except requests.RequestException as e:
+        return {"error": str(e)}
