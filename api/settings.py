@@ -57,6 +57,12 @@ INSTALLED_APPS = [
     "django_filters",
 ]
 
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://admin.kineticafricapp.com",
+    # add other domains as needed
+]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     # "whitenoise.middleware.WhiteNoiseMiddleware",
