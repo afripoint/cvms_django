@@ -1,12 +1,10 @@
 from django.urls import path
 from .views import (
-    # AllUsersAPIView,
     AllProfileDetailAPIView,
     AllProfileView,
     AllUsersList,
     ChangeDefaultPasswordAPIView,
-    # CreateUserAPIView,
-    DeactivateUerPAIView,
+    DeactivateUserAPIView,
     Enable2FAAPIView,
     ForgetPasswordAPIView,
     GrantAccessAPIView,
@@ -15,11 +13,11 @@ from .views import (
     ResetPasswordAPIView,
     SetNewPasswordAPIView,
     TwoFALoginAPIView,
-    # UnVerifiedUsersList,
-    # UnverifiedUserDetailView,
     UserCreationRequestAPIView,
     UserDetailView,
+    UserProfileAPIView,
     UserProfileUpdateAPIView,
+    UserProfileUpdateAdminAPIView,
     Verify2FAAPIView,
     VerifyUser,
     LoginAPIView,
@@ -33,7 +31,11 @@ urlpatterns = [
         VerifyUser.as_view(),
         name="verify-account",
     ),
-    path("change-default-password/", ChangeDefaultPasswordAPIView.as_view(), name="change-default-password"),
+    path(
+        "change-default-password/",
+        ChangeDefaultPasswordAPIView.as_view(),
+        name="change-default-password",
+    ),
     path("login/", LoginAPIView.as_view(), name="login"),
     path("two-factor-login/", TwoFALoginAPIView.as_view(), name="two-factor-login"),
     path("enable2FA/", Enable2FAAPIView.as_view(), name="enable-2FA"),
@@ -62,7 +64,7 @@ urlpatterns = [
     # deactivated an a user
     path(
         "deactivate-admin-user/<str:slug>/",
-        DeactivateUerPAIView.as_view(),
+        DeactivateUserAPIView.as_view(),
         name="deactivate-admin-user",
     ),
     # user_creation_request
@@ -77,18 +79,6 @@ urlpatterns = [
         GrantAccessAPIView.as_view(),
         name="grant-access",
     ),
-    # unverified-users
-    # path(
-    #     "unverified-users/",
-    #     UnVerifiedUsersList.as_view(),
-    #     name="unverified-user",
-    # ),
-    # unverified-users-details
-    # path(
-    #     "unverified-user-details/<slug:slug>/",
-    #     UnverifiedUserDetailView.as_view(),
-    #     name="unverified-user-details",
-    # ),
     # all-users
     path(
         "all-users/",
@@ -107,16 +97,26 @@ urlpatterns = [
         AllProfileView.as_view(),
         name="users-profiles",
     ),
-    # users-profile-detail
+    # users-profile-detail - admin
     path(
         "user-profile-detail/<slug:slug>/",
         AllProfileDetailAPIView.as_view(),
         name="users-profile-detail",
     ),
-    # users-profile-update
+    # users-profile-update - admin
     path(
         "user-profile-update/<slug:slug>/",
-        UserProfileUpdateAPIView.as_view(),
+        UserProfileUpdateAdminAPIView.as_view(),
         name="users-profile-update",
+    ),
+    path(
+        "logged-in-profile-view/<slug:slug>/",
+        UserProfileAPIView.as_view(),
+        name="logged-in-profile-view",
+    ),
+    path(
+        "logged-in-profile-update/<slug:slug>/",
+        UserProfileUpdateAPIView.as_view(),
+        name="logged-in-profile-update",
     ),
 ]

@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework.decorators import APIView
-from axes.utils import is_already_locked
+# from axes.utils import is_already_locked
 
 
 

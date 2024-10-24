@@ -12,6 +12,7 @@ from django.db.models import DateField
 from rest_framework import generics
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from accounts.permissions import HasPermission
 from data_uploads.pagination import AllUploadsPagination
 from data_uploads.utils import (
     is_duplicate,
@@ -29,7 +30,7 @@ from drf_yasg import openapi
 
 
 class UploadFileAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPermission]
     authentication_classes = [JWTAuthentication]
 
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -85,6 +86,10 @@ class UploadFileAPIView(APIView):
          # Extract the first_name and last_name
         first_name = user.first_name
         last_name = user.last_name
+
+         # Check if the user has the 'upload_files' permission
+        if not user.has_permission('upload_files'):
+            return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
 
 
         if not file:

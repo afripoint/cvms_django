@@ -31,6 +31,7 @@ from accounts.auth_logs import (
     password_updated_log,
 )
 from accounts.filters import CustomUserFilter
+from accounts.permissions import HasPermission
 from accounts.signals import get_client_ip
 from accounts.tokens import create_jwt_pair_for_user
 from django.utils import timezone
@@ -49,7 +50,6 @@ from data_uploads.pagination import (
     ProfilesPegination,
 )
 from django_filters.rest_framework import DjangoFilterBackend
-from logs.models import Log
 from .serializers import (
     ChangeDefaultPassword,
     CustomUserSerializer,
@@ -72,14 +72,109 @@ from .models import (
     PasswordResetToken,
     Profile,
 )
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 
 class UserCreationRequestAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This endpoint allows a user to request access to the admin - user creation account",
-        operation_description="Allow user have access to the admin user creation request",
+        operation_summary="Request access for admin user creation",
+        operation_description="""
+        This endpoint allows a user to request access for creating an admin user account.
+
+        ### Workflow:
+        1. **Request Submission:** The user submits details to request access for admin creation.
+        2. **Email Notifications:** The system sends email notifications to both the requesting user and the admin.
+        3. **Validation Checks:** The user's provided information is validated (email, phone number, etc.).
+        4. **Request Approval:** An admin will review the request and approve access to create an admin user account.
+        
+        ### Request Fields:
+        - **first_name** (string): First name of the user.
+        - **last_name** (string): Last name of the user.
+        - **email_address** (string): The email address of the user.
+        - **command** (string): The command the user belongs to.
+        - **department** (string): The department the user belongs to.
+        - **staff_id** (string): The staff_id of the user.
+        - **rank** (string): The rank of the user.
+        - **zone** (string): The zone of the user.
+        - **phone_number** (string): The user's phone number.
+        - **role** (string): The role being requested.
+        - **password** (string): password should be blank.
+
+
+        ### Responses:
+        - **200 OK**: Request for access was successfully submitted.
+        - **400 Bad Request**: Validation failed, such as missing or incorrect fields.
+        - **500 Internal Server Error**: There was an error sending email notifications due to a server issue.
+
+        ### Example Usage:
+        ```
+        POST /auth/user-creation-request/
+        {
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "staff_id": "ADW1234",
+            "email_address": "jane.doe@example.com",
+            "command": "Lagos Command",
+            "department": "Operations",
+            "rank": "Inspector",
+            "zone": "Zone A",
+            "phone_number": "08012345678",
+            "role": "Compliance"
+            "password": "" NB: this field should be allowed blank when testing
+        }
+        ```
+
+        ### Example Response (Success):
+        ```
+        HTTP 200 OK
+        {
+            "message": "Request for access sent"
+        }
+        ```
+
+        ### Example Response (Validation Error):
+        ```
+        HTTP 400 Bad Request
+        {
+            "error": "Validation failed",
+            "details": "Phone number must start with '+234' or '080' and be 11 digits long."
+        }
+        ```
+
+        ### Example Response (Email Sending Failure):
+        ```
+        HTTP 500 Internal Server Error
+        {
+            "error": "Failed to send email notifications",
+            "details": "SMTP server not available."
+        }
+        ```
+        """,
         request_body=UserCreationRequestSerializer,
+        responses={
+            200: openapi.Response(
+                description="Request for access sent successfully.",
+                examples={"application/json": {"message": "Request for access sent"}},
+            ),
+            400: openapi.Response(
+                description="Validation failed. Ensure all required fields are correct.",
+                examples={
+                    "application/json": {
+                        "error": "Validation failed",
+                        "details": "Phone number must start with '+234' or '080' and be 11 digits long.",
+                    }
+                },
+            ),
+            500: openapi.Response(
+                description="Failed to send email notifications due to server error.",
+                examples={
+                    "application/json": {
+                        "error": "Failed to send email notifications",
+                        "details": "SMTP server not available.",
+                    }
+                },
+            ),
+        },
     )
     def post(self, request):
         try:
@@ -123,7 +218,7 @@ class UserCreationRequestAPIView(APIView):
                     subject=subject,
                     body=message_admin,
                     from_email=settings.DEFAULT_FROM_EMAIL,
-                    to_email=["dennisthegenius036@gmail.com"],
+                    to_email=["admin@cvmsnigeria.com"],
                 )
 
                 response = {
@@ -154,8 +249,76 @@ class UserCreationRequestAPIView(APIView):
 # approve request view
 class GrantAccessAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This endpoint verifies users - admin",
-        operation_description="Verify and grant access to users - admin",
+        operation_summary="Verify and Grant Access to Users - Admin",
+        operation_description="""
+        This endpoint allows an administrator to verify and grant or decline access to users based on their role and verification status.
+
+        ### Workflow:
+        1. **User Retrieval:** The system attempts to retrieve a user based on the provided slug.
+        2. **Data Validation:** The serializer validates the incoming data to ensure the correct format and completeness.
+        3. **Verification Update:** If the user is verified, they are granted access, and a token is generated for account activation.
+        4. **Email Notification:** The user is notified of the outcome (approval or decline) via email, with an activation link included if access is granted.
+        
+        ### Request Fields:
+        - **is_verified** (boolean): Indicates whether the user's access request is approved or declined.
+
+        ### Responses:
+        - **200 OK**: The user is verified and granted access, or the access request is declined.
+        - **404 Not Found**: The user does not exist for the given slug.
+        - **400 Bad Request**: Invalid data or errors in the email header are detected.
+        - **500 Internal Server Error**: Issues arise during token generation, user save, or email sending.
+
+        ### Example Usage:
+        ```
+        POST auth/grant-access/{slug}/
+        {
+            "is_verified": true
+        }
+        ```
+
+        ### Example Response (Access Granted):
+        ```
+        HTTP 200 OK
+        {
+            "message": "Access granted to John Doe with the role of Officer."
+        }
+        ```
+
+        ### Example Response (Access Declined):
+        ```
+        HTTP 200 OK
+        {
+            "message": "Access for John Doe has been declined."
+        }
+        ```
+
+        ### Example Response (User Not Found):
+        ```
+        HTTP 404 Not Found
+        {
+            "error": "User not found with the provided slug."
+        }
+        ```
+
+        ### Example Response (Invalid Data):
+        ```
+        HTTP 400 Bad Request
+        {
+            "error": "Invalid data",
+            "details": {"is_verified": ["This field is required."]}
+        }
+        ```
+
+        ### Example Response (Email Error):
+        ```
+        HTTP 500 Internal Server Error
+        {
+            "error": "SMTP error while sending email.",
+            "details": "Connection refused"
+        }
+        ```
+
+        """,
         request_body=GrantAccessSerializer,
     )
     def post(self, request, slug):
@@ -310,59 +473,214 @@ class VerifyUser(APIView):
 
 class ChangeDefaultPasswordAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This is responsible for changing the default password",
-        operation_description="This endpoint change the default password",
+        operation_summary="Change Default Password",
+        operation_description="""
+        This endpoint allows a user to change their default password after account creation.
+
+        ### Workflow:
+        1. **Password Validation:** The new password is validated using the provided data.
+        2. **Token and User ID Validation:** The system checks the `uidb64` and `token` to ensure the user exists and the token is valid.
+        3. **Password Update:** If the token is valid, the user's password is updated, and their account is activated.
+        4. **Token Expiry Check:** If the token has already been used, an error is returned.
+
+        ### Request Fields:
+        - **password** (string): The new password to set for the user.
+        - **token** (string): The password reset token for validating the request.
+        - **uidb64** (string): The base64 encoded user ID for validation.
+
+        ### Responses:
+        - **200 OK**: The password was updated successfully, and the user account was activated.
+        - **404 Not Found**: The user was not found.
+        - **400 Bad Request**: Invalid data or the token has already been used.
+
+        ### Example Usage:
+        ```
+        PATCH /api/change-default-password/
+        {
+            "password": "newPassword123",
+            "token": "valid-token-string",
+            "uidb64": "encoded-uidb64-string"
+        }
+        ```
+
+        ### Example Response (Success):
+        ```
+        HTTP 200 OK
+        {
+            "message": "Password updated successfully"
+        }
+        ```
+
+        ### Example Response (User Not Found):
+        ```
+        HTTP 404 Not Found
+        {
+            "error": "User not found"
+        }
+        ```
+
+        ### Example Response (Token Already Used):
+        ```
+        HTTP 400 Bad Request
+        {
+            "error": "Token has been used"
+        }
+        ```
+
+        ### Example Response (Invalid Data):
+        ```
+        HTTP 400 Bad Request
+        {
+            "password": ["This field is required."]
+        }
+        ```
+
+        """,
         request_body=ChangeDefaultPassword,
     )
     def patch(self, request):
-        data = request.data
+        # Validate the incoming request data using the serializer
         serializer = ChangeDefaultPassword(data=request.data)
 
         if serializer.is_valid():
-            validated_data = serializer.save()
+            uidb64 = serializer.validated_data.get("uidb64")
+            token = serializer.validated_data.get("token")
+            password = serializer.validated_data.get("password")
 
-            try:
-                token = validated_data.get("token")
-                uidb64 = validated_data.get("uidb64")
-
-                uid = urlsafe_base64_decode(uidb64).decode()
-                user = CustomUser.objects.get(pk=uid)
-
-                # check if the token has been used
-                token_generator = PasswordResetTokenGenerator()
-
-                if not token_generator.check_token(user, token):
-                    return Response(
-                        {"error": "Token has been used"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                # Update user's password and save
-                password = serializer.validated_data.get("password")
-                user.set_password(password)
-                # Activate the user
-                user.is_verified = True
-                user.is_active = True
-                user.save()
-
+            # Decode UID and retrieve the user
+            user = self.get_user(uidb64)
+            if not user:
                 return Response(
-                    {"message": "Password updated successfully"},
-                    status=status.HTTP_200_OK,
+                    {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-            except CustomUser.DoesNotExist:
+            # Check if the token is valid and not already used
+            if not self.is_token_valid(user, token):
                 return Response(
-                    {"error": "User not found"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {"error": "Token has been used"}, status=status.HTTP_400_BAD_REQUEST
                 )
+
+            # Update the user's password and activate the account
+            self.update_password_and_activate_user(user, password)
+
+            return Response(
+                {"message": "Password updated successfully"}, status=status.HTTP_200_OK
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_user(self, uidb64):
+        """
+        Helper function to retrieve user by decoded UID.
+        """
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            return CustomUser.objects.get(pk=uid)
+        except (CustomUser.DoesNotExist, ValueError, TypeError):
+            return None
+
+    def is_token_valid(self, user, token):
+        """
+        Helper function to validate the password reset token.
+        """
+        token_generator = PasswordResetTokenGenerator()
+        return token_generator.check_token(user, token)
+
+    def update_password_and_activate_user(self, user, password):
+        """
+        Helper function to update the password and activate the user account.
+        """
+        user.set_password(password)
+        user.is_verified = True
+        user.is_active = True
+        user.default_password = None
+        user.save()
 
 
 class LoginAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This endpoint is responsible for logging in an admin user",
-        operation_description="This endpoint logs in an admin",
+        operation_summary="Admin Login",
+        operation_description="""
+        This endpoint allows an admin user to log in to the system by providing their email address and password.
+
+        ### Workflow:
+        1. **Email and Password Validation:** The system verifies the user's email and password.
+        2. **Role Restriction:** Enforcement Officers are restricted from logging in.
+        3. **Account Lock:** Users with 3 or more failed login attempts are locked out and prompted to use the "Forgot Password" feature.
+        4. **Password Validation:** If the password is incorrect, the user’s failed attempts are logged.
+        5. **Inactive Account Check:** If the account is inactive, the user is prompted to activate it.
+        6. **2FA Support:** If 2FA is enabled, the user is prompted for two-factor authentication.
+        7. **Successful Login:** On successful authentication, the system returns JWT tokens and user information.
+
+        ### Request Fields:
+        - **email_address** (string): The user's email address.
+        - **password** (string): The user's password.
+
+        ### Responses:
+        - **200 OK**: Successful login, JWT tokens, and user information are returned.
+        - **400 Bad Request**: User does not exist, incorrect password, or inactive account.
+        - **403 Forbidden**: Enforcement Officer role is not allowed to log in.
+        - **200 OK** (2FA Required): Two-factor authentication is required.
+
+        ### Example Usage:
+        ```
+        POST /auth/login/
+        {
+            "email_address": "admin@example.com",
+            "password": "password123"
+        }
+        ```
+
+        ### Example Response (Success):
+        ```
+        HTTP 200 OK
+        {
+            "message": "Login successfully",
+            "token": {
+                "access": "access_token_here",
+                "refresh": "refresh_token_here"
+            },
+            "user": {
+                "first_name": "John",
+                "last_name": "Doe"
+            }
+        }
+        ```
+
+        ### Example Response (Invalid Credentials):
+        ```
+        HTTP 400 Bad Request
+        {
+            "message": "Invalid credentials"
+        }
+        ```
+
+        ### Example Response (Account Locked):
+        ```
+        HTTP 400 Bad Request
+        {
+            "message": "User account is locked. click on forgot password to unlock account"
+        }
+        ```
+
+        ### Example Response (Unauthorized Role):
+        ```
+        HTTP 403 Forbidden
+        {
+            "message": "You are not authorized to log in here."
+        }
+        ```
+
+        ### Example Response (2FA Required):
+        ```
+        HTTP 200 OK
+        {
+            "message": "2FA required",
+            "requires_2fa": true
+        }
+        ```
+
+        """,
         request_body=LoginSerializer,
     )
     def post(self, request):
@@ -380,13 +698,13 @@ class LoginAPIView(APIView):
                 {"message": "User with this email does not exist"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # Check if the user's role is "Enforcement Officer" and block their login attempt
-        if user.role.role == "Enforcement Officer":
-                return Response(
-                    {"message": "You are not authorized to log in here."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )    
+        # if user.role.role == "Enforcement Officer":
+        #     return Response(
+        #         {"message": "You are not authorized to log in here."},
+        #         status=status.HTTP_403_FORBIDDEN,
+        #     )
 
         # Check if the user is locked out
         if user.login_attempts >= 3 and not user.is_active:
@@ -432,7 +750,7 @@ class LoginAPIView(APIView):
             return Response(
                 {"message": "2FA required", "requires_2fa": True},
                 status=status.HTTP_200_OK,
-            )    
+            )
 
         # Authenticate the user
         authenticated_user = authenticate(
@@ -461,7 +779,11 @@ class LoginAPIView(APIView):
                 "user": {
                     "first_name": user.first_name,
                     "last_name": user.last_name,
+                    "role": user.role.role,
+                    "role_slug": user.role.slug,
+                    "permissions": [permission.permission_code for permission in user.role.permissions.all()],
                 },
+                
             },
             status=status.HTTP_200_OK,
         )
@@ -552,8 +874,78 @@ class Verify2FAAPIView(APIView):
 # forget Password
 class ForgetPasswordAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This endpoint is responsible for getting users email to reset their password.",
-        operation_description="This endpoint collects user email for password reset.",
+        operation_summary="Request Password Reset",
+        operation_description="""
+        This endpoint is responsible for initiating the password reset process by collecting the user's email address.
+
+        ### Workflow:
+        1. **Email Validation:** The system verifies if the email belongs to a registered user.
+        2. **Token Generation:** If the email is valid, a unique password reset token is generated.
+        3. **Email Dispatch:** A password reset link containing the token is sent to the user's email.
+        4. **Error Handling:** Errors related to email delivery (SMTP, connection, timeout) are handled gracefully.
+
+        ### Request Fields:
+        - **email_address** (string): The registered email address of the user requesting a password reset.
+
+        ### Responses:
+        - **200 OK**: Password reset email sent successfully.
+        - **404 Not Found**: User with the provided email does not exist.
+        - **500 Internal Server Error**: An error occurred while sending the reset email (SMTP issues, connection refused, or timeout).
+        - **400 Bad Request**: Invalid input data.
+
+        ### Example Usage:
+        ```
+        POST /api/forgot-password/
+        {
+            "email_address": "user@example.com"
+        }
+        ```
+
+        ### Example Response (Success):
+        ```
+        HTTP 200 OK
+        {
+            "message": "Reset email successfully sent. Please check your email.",
+            "uidb64": "encoded_user_id",
+            "token": "generated_token"
+        }
+        ```
+
+        ### Example Response (User Not Found):
+        ```
+        HTTP 404 Not Found
+        {
+            "message": "User with this email does not exist."
+        }
+        ```
+
+        ### Example Response (SMTP Error):
+        ```
+        HTTP 500 Internal Server Error
+        {
+            "message": "There was an error sending the reset email. Please try again later.",
+            "error": "SMTPException details"
+        }
+        ```
+
+        ### Example Response (Connection Error):
+        ```
+        HTTP 500 Internal Server Error
+        {
+            "message": "Could not connect to the email server. Please check your email settings.",
+            "error": "ConnectionRefusedError details"
+        }
+        ```
+
+        ### Example Response (Timeout):
+        ```
+        HTTP 500 Internal Server Error
+        {
+            "message": "Email server timeout. Please try again later.",
+            "error": "TimeoutError details"
+        }
+        ```
+        """,
         request_body=ForgetPasswordEmailRequestSerializer,
     )
     def post(self, request):
@@ -701,16 +1093,79 @@ class PasswordTokenCheck(APIView):
 
 class SetNewPasswordAPIView(APIView):
     @swagger_auto_schema(
-        operation_summary="This endpoint is responsible for resetting the user's password if he forgets",
+        operation_summary="Reset User's Password",
         operation_description="""
-    This endpoint validates and updates the user's password. The password must meet the following requirements:
-    
-    - **At least one uppercase letter** (A-Z)
-    - **At least one digit** (0-9)
-    - **At least one special character** from the set: `!@#$%^&*()-_=+{};:,<.>`
-    
-    If these conditions are not met, an error message will be returned. 
-    """,
+        This endpoint allows the user to reset their password after verifying their token and UID. The new password must meet the following security criteria:
+
+        ### Password Requirements:
+        - **At least one uppercase letter** (A-Z)
+        - **At least one digit** (0-9)
+        - **At least one special character** from the set: `!@#$%^&*()-_=+{};:,<.>`
+
+        ### Workflow:
+        1. **Token and UID Validation:** The system validates the provided user ID (UID) and password reset token.
+        2. **Password Update:** If the token is valid and has not expired, the user's password is updated with the new password.
+        3. **Token Invalidation:** The token is marked as used, and further requests with this token will be rejected.
+
+        ### Common Error Responses:
+        - **400 Bad Request**: Invalid or missing token, invalid UID, or non-compliant password.
+        - **400 Token Expired**: Token has expired and can no longer be used.
+        - **400 Token Already Used**: Token has already been used to reset the password.
+        - **200 OK**: Password reset was successful.
+
+        ### Example Usage:
+        ```
+        PATCH /api/set-new-password/
+        {
+            "uidb64": "encoded_user_id",
+            "token": "reset_token",
+            "password": "NewPassword123!"
+        }
+        ```
+
+        ### Example Responses:
+        - **Success (200 OK)**:
+        ```
+        {
+            "message": "Password updated successfully."
+        }
+        ```
+
+        - **Invalid Token (400 Bad Request)**:
+        ```
+        {
+            "error": "Invalid token."
+        }
+        ```
+
+        - **Token Expired (400 Bad Request)**:
+        ```
+        {
+            "error": "Token has expired."
+        }
+        ```
+
+        - **Token Already Used (400 Bad Request)**:
+        ```
+        {
+            "error": "Token has already been used."
+        }
+        ```
+
+        - **Invalid UID (400 Bad Request)**:
+        ```
+        {
+            "error": "Invalid UID or user not found."
+        }
+        ```
+
+        - **Password Validation Failure (400 Bad Request)**:
+        ```
+        {
+            "password": ["Password must contain at least one uppercase letter, one digit, and one special character."]
+        }
+        ```
+        """,
         request_body=SetNewPasswordSerializer,
     )
     def patch(self, request):
@@ -752,7 +1207,9 @@ class SetNewPasswordAPIView(APIView):
 
                 # Set new password and mark token as used
                 user.set_password(password)
+                user.login_attempts = 0
                 user.is_active = True
+                user.last_login_attempt = None
                 user.save()
                 reset_token.used = True
                 reset_token.save()
@@ -783,8 +1240,44 @@ class ResetPasswordAPIView(APIView):
     authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
-        operation_summary="This endpoint is responsible for resetting the user password",
-        operation_description="Resets the users password - must be an authenticated user",
+        operation_summary="Reset User's Password (Authenticated)",
+        operation_description="""
+        This endpoint allows an authenticated user to reset their password. 
+        The user must provide the following details in the request:
+        
+        - **old Password:** To validate the identity of the user.
+        - **New Password:** The new password must meet the required security criteria (e.g., at least one uppercase letter, one digit, and one special character).
+        - ** confirm_new_password: ** the confirm password
+
+        ### Example Usage:
+        ```
+        PATCH /api/reset-password/
+        {
+            "old_password": "OldPassword123",
+            "new_password": "NewPassword456!"
+            "confirm_password": "confirm_password!"
+        }
+        ```
+
+        ### Example Responses:
+        - **Success (200 OK):**
+        ```
+        {
+            "message": "Password updated successfully"
+        }
+        ```
+
+        - **Invalid Password (400 Bad Request):**
+        ```
+        {
+            "current_password": ["Current password is incorrect."]
+        }
+        ```
+
+        ### Requirements:
+        - User must be authenticated.
+        - New password must meet the defined security requirements.
+        """,
         request_body=ResetPasswordSerializer,
     )
     def patch(self, request):
@@ -824,8 +1317,8 @@ class LogoutAPIView(APIView):
 
 
 # deactivating a user
-class DeactivateUerPAIView(APIView):
-    permission_classes = [IsAuthenticated]
+class DeactivateUserAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
     authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
@@ -848,13 +1341,18 @@ class DeactivateUerPAIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# unveried users list
+# view all user
 class AllUsersList(generics.ListAPIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     queryset = CustomUser.objects.all().select_related("profile")
     serializer_class = CustomUserSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ["=first_name", "=last_name", "=email_address", "phone_number"]
     pagination_class = AllUsersPagination
+
+    # Set the required permission dynamically for this view
+    # required_permission = 'view_users'
 
     @swagger_auto_schema(
         operation_summary="List all users with optional date, first_name, email_address and phone_number  filters",
@@ -929,6 +1427,8 @@ class AllUsersList(generics.ListAPIView):
 
 # User-details
 class UserDetailView(GenericAPIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     queryset = CustomUser.objects.all().select_related("profile")
     serializer_class = CustomUserSerializer
     lookup_field = "slug"
@@ -951,6 +1451,8 @@ class UserDetailView(GenericAPIView):
 
 # all user profile
 class AllProfileView(GenericAPIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
     filter_backends = [filters.SearchFilter]
@@ -986,6 +1488,8 @@ class AllProfileView(GenericAPIView):
 
 
 class AllProfileDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     @swagger_auto_schema(
         operation_summary="profile detail API enpoint",
         operation_description="""
@@ -1002,12 +1506,14 @@ class AllProfileDetailAPIView(APIView):
 
         return Response(data=response, status=status.HTTP_200_OK)
 
-
-class UserProfileUpdateAPIView(APIView):
+# update user profile - admin
+class UserProfileUpdateAdminAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    authentication_classes = [JWTAuthentication]
     @swagger_auto_schema(
-        operation_summary="profile update API enpoint",
+        operation_summary="profile update by admin API enpoint",
         operation_description="""
-        This endpoint retrieves and update a user profile.
+        This endpoint retrieves and update a user profile by admin.
         """,
         request_body=ProfileSerializer,
     )
@@ -1023,3 +1529,55 @@ class UserProfileUpdateAPIView(APIView):
             }
             return Response(data=response, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+# user profile view
+class UserProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    @swagger_auto_schema(
+        operation_summary="Profile view  of a logged in user",
+        operation_description="""
+        This endpoint the profile of a logged in user.
+        """,
+    )
+    def get(self, request, slug):
+        user = request.user
+        user_profile = get_object_or_404(Profile, slug=slug)
+        serializer = ProfileSerializer(user, user_profile)
+
+        response = {
+            "message": "logged in user profile",
+            "data": serializer.data,
+        }
+        return Response(data=response, status=status.HTTP_200_OK)
+
+
+# logged in user update profile
+class UserProfileUpdateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    @swagger_auto_schema(
+        operation_summary="Profile update of a logged in user",
+        operation_description="""
+        This endpoint updated the profile of a logged in user.
+        """,
+        request_body=ProfileSerializer,
+    )
+    def patch(self, request, slug):
+        user = request.user
+        profile = get_object_or_404(Profile, slug=slug)
+        serializer = ProfileSerializer(user, profile, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+
+            response = {
+                "message": "profile updated successfully",
+                "data": serializer.data
+            }
+
+            return Response(data=response, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
