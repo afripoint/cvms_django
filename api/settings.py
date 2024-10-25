@@ -116,16 +116,14 @@ DATABASES = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("POSTGRES_DB"),
-        "USER": config("POSTGRES_USER"),
-        "PASSWORD": config("POSTGRES_PASSWORD"),
-        "HOST": config("POSTGRES_HOST"),
+        "NAME": "cvmsdjangoadmindevdb2",
+        "USER": "cvmsdevdbuser",
+        "PASSWORD": "ZfxjP54cLIdz54cLIdz",
+        "HOST": "161.97.86.134",
         "PORT": 5432,
-        # "OPTIONS": {
-        #     "sslmode": "require",
-        # },
     }
 }
+
 
 # DATABASES = {"default": config("DATABASE_URL")}
 
