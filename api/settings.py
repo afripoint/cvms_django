@@ -57,6 +57,12 @@ INSTALLED_APPS = [
     "django_filters",
 ]
 
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://admin.kineticafricapp.com",
+    # add other domains as needed
+]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     # "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -100,6 +106,7 @@ WSGI_APPLICATION = "api.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -110,16 +117,14 @@ DATABASES = {
 # DATABASES = {
 #     "default": {
 #         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": config("POSTGRES_DB"),
-#         "USER": config("POSTGRES_USER"),
-#         "PASSWORD": config("POSTGRES_PASSWORD"),
-#         "HOST": config("POSTGRES_HOST"),
+#         "NAME": "cvmsdjangoadmindevdb2",
+#         "USER": "cvmsdevdbuser",
+#         "PASSWORD": "ZfxjP54cLIdz54cLIdz",
+#         "HOST": "161.97.86.134",
 #         "PORT": 5432,
-#         # "OPTIONS": {
-#         #     "sslmode": "require",
-#         # },
 #     }
 # }
+
 
 # DATABASES = {"default": config("DATABASE_URL")}
 

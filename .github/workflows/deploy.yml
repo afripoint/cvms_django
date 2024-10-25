@@ -32,10 +32,10 @@ jobs:
           port: 22
           password: kzQdG6Vw4vJQx56obn885jCnuP65
           script: |
-            cd /root/cvmsadmin/cvmsdjangoadmin_server_configuration
+            cd /root/cvmsadmin/cvms_django_deploy_config
             git checkout dev2
             git reset --hard HEAD
             git pull origin dev2
-            docker stack deploy -c /root/cvmsadmin/cvmsdjangoadmin_server_configuration/docker-compose.yml cvmsdevstack 
+            docker stack deploy -c /root/cvmsadmin/cvms_django_deploy_config/docker-compose.yml cvmsdevstack 
 
           
