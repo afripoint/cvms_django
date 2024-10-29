@@ -5,50 +5,32 @@ from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
+from accounts.authentication import APIKeyAuthentication
 from accounts.models import CVMSAuthLog
 from drf_yasg import openapi
 from accounts.signals import get_client_ip
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from tracker.models import Consignment, TrackingRecord
+from tracker.models import Consignment
 from tracker.serializer import (
-    ConsignmentRegisterSeriliazer,
-    ConsignmentUpdateSerializer,
+    ConsignmentSeriliazer,
 )
 
 
 class ConsignmentRegistrationAPIView(APIView):
-    # permission_classes = [IsAuthenticated, IsAdminUser]
-    # authentication_classes = [JWTAuthentication]
 
     @swagger_auto_schema(
         operation_summary="Create a consigment record for an importer",
         operation_description="Creates a consignment record for an importer.",
-        request_body=ConsignmentRegisterSeriliazer,
+        request_body=ConsignmentSeriliazer,
     )
     def post(self, request):
         data = request.data
-        serializer = ConsignmentRegisterSeriliazer(data=data)
+        serializer = ConsignmentSeriliazer(data=data)
 
         if serializer.is_valid():
             serializer.save()
-
-            try:
-                registration_officer = serializer.validated_data["registration_officer"]
-
-                consignment_instance = Consignment.objects.get(
-                    registration_officer=registration_officer
-                )
-
-                TrackingRecord.objects.create(
-                    created_by=consignment_instance,
-                    tracking_status="tracking created",
-                )
-
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
             response = {
                 "message": "consignment record created successfully",
                 "data": serializer.data,
@@ -60,35 +42,64 @@ class ConsignmentRegistrationAPIView(APIView):
         )
 
 
-class ConsignmentUpdateAPIView(APIView):
+class ConsignentListAPIView(APIView):
+    authentication_classes = [APIKeyAuthentication]
+
     @swagger_auto_schema(
-        operation_summary="Updating a record for tracking by the importer",
-        operation_description="Update a consignment record for an importer to be able to track.",
-        request_body=ConsignmentUpdateSerializer,
+        operation_summary="Retrieve a list of consignments or filter by bill_of_ladding",
+        operation_description="Returns a list of consignments. If a `bill_of_ladding` query parameter is provided, filters results by the specified bill of ladding.",
+        request_body=None,
     )
-    def patch(self, request, slug):
-        instance = get_object_or_404(Consignment, slug=slug)
-        serializer = ConsignmentUpdateSerializer(
-            instance, data=request.data, partial=True
-        )
-        if serializer.is_valid():
-            try:
-                registration_officer = serializer.validated_data["registration_officer"]
-                TrackingRecord.objects.create(
-                    created_by=instance,
-                    updated_by=registration_officer,
-                    tracking_status="tracking updated",
-                )
-                serializer.save()
+    def get(self, request):
+        consignments = Consignment.objects.all()
+        # Get 'bill_of_ladding' from query parameters if provided
+        # bill_of_ladding = request.query_params.get("bill_of_ladding")
 
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        # if bill_of_ladding:
+        #     consignments = Consignment.objects.filter(bill_of_ladding=bill_of_ladding)
 
-            response = {
-                "message": "consignment record updated successfully",
-            }
+        # else:
+        #     consignments = Consignment.objects.all()
 
-            return Response(data=response, status=status.HTTP_201_CREATED)
-        return Response(
-            data=serializer.error_messages, status=status.HTTP_400_BAD_REQUEST
-        )
+        serializer = ConsignmentSeriliazer(consignments, many=True)
+
+        response = {
+            "message": "consignent fetched successfully",
+            "data": serializer.data,
+        }
+
+        return Response(data=response, status=status.HTTP_200_OK)
+
+
+# class ConsignmentUpdateAPIView(APIView):
+#     @swagger_auto_schema(
+#         operation_summary="Updating a record for tracking by the importer",
+#         operation_description="Update a consignment record for an importer to be able to track.",
+#         request_body=ConsignmentUpdateSerializer,
+#     )
+#     def patch(self, request, slug):
+#         instance = get_object_or_404(Consignment, slug=slug)
+#         serializer = ConsignmentUpdateSerializer(
+#             instance, data=request.data, partial=True
+#         )
+#         if serializer.is_valid():
+#             try:
+#                 registration_officer = serializer.validated_data["registration_officer"]
+#                 TrackingRecord.objects.create(
+#                     created_by=instance,
+#                     updated_by=registration_officer,
+#                     tracking_status="tracking updated",
+#                 )
+#                 serializer.save()
+
+#             except Exception as e:
+#                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+#             response = {
+#                 "message": "consignment record updated successfully",
+#             }
+
+#             return Response(data=response, status=status.HTTP_201_CREATED)
+#         return Response(
+#             data=serializer.error_messages, status=status.HTTP_400_BAD_REQUEST
+#         )
