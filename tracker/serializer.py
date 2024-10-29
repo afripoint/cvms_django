@@ -2,12 +2,8 @@ from rest_framework import serializers
 from .models import Consignment
 
 
-class ConsignmentRegisterSeriliazer(serializers.ModelSerializer):
+class ConsignmentSeriliazer(serializers.ModelSerializer):
     importer_phone = serializers.CharField(max_length=50, min_length=2, required=True)
-    shipping_status = serializers.ChoiceField(
-        choices=Consignment.SHIPMENT_STATUS, default="in transit"
-    )
-
     class Meta:
         model = Consignment
         fields = (
@@ -16,7 +12,6 @@ class ConsignmentRegisterSeriliazer(serializers.ModelSerializer):
             "shipping_company",
             "importer_phone",
             "consignee",
-            "shipping_status",
             "shipper",
             "terminal",
             "bonded_terminal",
@@ -51,9 +46,3 @@ class ConsignmentRegisterSeriliazer(serializers.ModelSerializer):
             value = "+" + value
 
         return value
-
-
-class ConsignmentUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Consignment
-        fields = ("registration_officer", "shipping_status")
