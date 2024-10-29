@@ -10,23 +10,14 @@ env = environ.Env()
 
 environ.Env.read_env()
 
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-f*$dp9#im)nkbux#8lml8j#wn^1jvtxu6tb6%&k47f+inid09-"
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
-
-# Application definition
+ALLOWED_HOSTS = ["admin.afridev.com.ng"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -59,7 +50,7 @@ INSTALLED_APPS = [
 
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://admin.kineticafricapp.com",
+    "https://admin.afridev.com.ng",
     # add other domains as needed
 ]
 
