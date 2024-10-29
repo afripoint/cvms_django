@@ -1,16 +1,24 @@
 from django.urls import path
 
-from tracker.views import ConsignmentRegistrationAPIView, ConsignmentUpdateAPIView
+from tracker.views import (
+    ConsignentListAPIView,
+    ConsignmentRegistrationAPIView,
+)
 
 urlpatterns = [
+    path(
+        "",
+        ConsignentListAPIView.as_view(),
+        name="consignment-list",
+    ),
     path(
         "create-consignment/",
         ConsignmentRegistrationAPIView.as_view(),
         name="create-consignment",
     ),
-    path(
-        "update-consignment/<slug:slug>/",
-        ConsignmentUpdateAPIView.as_view(),
-        name="update-tracker",
-    ),
+    # path(
+    #     "update-consignment/<slug:slug>/",
+    #     ConsignmentUpdateAPIView.as_view(),
+    #     name="update-tracker",
+    # ),
 ]

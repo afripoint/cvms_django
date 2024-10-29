@@ -107,23 +107,23 @@ WSGI_APPLICATION = "api.wsgi.application"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
-
 # DATABASES = {
 #     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": "cvmsdjangoadmindevdb2",
-#         "USER": "cvmsdevdbuser",
-#         "PASSWORD": "ZfxjP54cLIdz54cLIdz",
-#         "HOST": "161.97.86.134",
-#         "PORT": 5432,
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
 #     }
 # }
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "cvmsdjangoadmindevdb2",
+        "USER": "cvmsdevdbuser",
+        "PASSWORD": "ZfxjP54cLIdz54cLIdz",
+        "HOST": "161.97.86.134",
+        "PORT": 5432,
+    }
+}
 
 
 # DATABASES = {"default": config("DATABASE_URL")}
@@ -262,3 +262,6 @@ SWAGGER_SETTINGS = {
         "api_key": {"type": "apiKey", "in": "header", "name": "Authorization"}
     },
 }
+
+
+API_KEY = "rbAZcgfSXQLiHHCzYk8pDU9svNpnoFNZ"
