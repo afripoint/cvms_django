@@ -108,8 +108,8 @@ WSGI_APPLICATION = "api.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "cvmsdjangoadmindevdb2",
-        "USER": "cvmsdevdbuser",
+        "NAME": "cvmsdjangodb",
+        "USER": "cvmsdevdjangodbuser",
         "PASSWORD": "ZfxjP54cLIdz54cLIdz",
         "HOST": "161.97.86.134",
         "PORT": 5432,
