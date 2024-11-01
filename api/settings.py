@@ -110,9 +110,9 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "cvmsdjangoadmindb",
-        "USER": "cvmsdevdjangodbuser",
-        "PASSWORD": "ZfxjP54cLIdz54cLIdz",
-        "HOST": "161.97.86.134",
+        "USER": "afriauthdb_owner",
+        "PASSWORD": "ZfxjP54cLIdz",
+        "HOST": "ep-silent-frost-a2griadk.eu-central-1.aws.neon.tech",
         "PORT": 5432,
         "OPTIONS": {
             "sslmode": "require",
