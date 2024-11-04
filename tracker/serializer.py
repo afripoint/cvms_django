@@ -17,11 +17,12 @@ class ConsignmentSeriliazer(serializers.ModelSerializer):
             "bonded_terminal",
             "description_of_goods",
             "gross_weight",
+            "quantity",
             "eta",
             "vessel_voyage",
             "hs_code",
             "port_of_landing",
-            "port_of_landing",
+            "port_of_loading",
         )
 
     def validate_importer_phone(self, value):
