@@ -43,7 +43,7 @@ class ConsignmentRegistrationAPIView(APIView):
 
 
 class ConsignentListAPIView(APIView):
-    authentication_classes = [APIKeyAuthentication]
+    # authentication_classes = [APIKeyAuthentication]
 
     @swagger_auto_schema(
         operation_summary="Retrieve a list of consignments or filter by bill_of_ladding",
