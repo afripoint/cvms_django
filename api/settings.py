@@ -157,9 +157,6 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
@@ -168,17 +165,11 @@ STATICFILES_DIRS = [
 ]
 
 MEDIA_URL = "/media/"
-
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-
 AUTH_USER_MODEL = "accounts.CustomUser"
-
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 
@@ -212,44 +203,6 @@ SIMPLE_JWT = {
 ADMINS = [
     ("Super Administrator", "super_admin@cvms.com"),
 ]
-
-
-# STORAGES = {
-#     "default": {
-#         "BACKEND": "django.core.files.storage.FileSystemStorage",
-#     },
-#     "staticfiles": {
-#         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
-#     },
-# }
-
-# JAZZMIN_SETTINGS = {
-#     "site_title": "CVMS dashboard",
-#     "site_header": "CVMS",
-#     "site_brand": "CVMS",
-#     "site_logo": "",
-#     "login_logo": None,
-#     "login_logo_dark": None,
-#     "site_logo_classes": "img-circle",
-#     "site_icon": None,
-#     "welcome_sign": "Welcome to the CVMS",
-#     "copyright": "Afripoint Group",
-#     "search_model": ["auth.User", "auth.Group"],
-#     "user_avatar": None,
-#     # Whether to display the side menu
-#     "show_sidebar": True,
-#     # Whether to aut expand the menu
-#     "navigation_expanded": True,
-#     # Hide these apps when generating side menu e.g (auth)
-#     "hide_apps": [],
-#     # Hide these models when generating side menu (e.g auth.user)
-#     "hide_models": [],
-#     #################
-#     # Related Modal #
-#     #################
-#     # Use modals instead of popups
-#     "related_modal_active": False,
-# }
 
 
 SWAGGER_SETTINGS = {

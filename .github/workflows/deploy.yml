@@ -27,7 +27,7 @@ jobs:
       - name: Deploy to server
         uses: appleboy/ssh-action@master
         with:
-          host: 161.97.86.134
+          host: 62.84.178.94
           username: root
           port: 22
           password: kzQdG6Vw4vJQx56obn885jCnuP65
