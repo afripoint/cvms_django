@@ -105,8 +105,21 @@ WSGI_APPLICATION = "api.wsgi.application"
 #         "NAME": BASE_DIR / "db.sqlite3",
 #     }
 # }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "cvmsdjangoadmindb",
+        "USER": "afriauthdb_owner",
+        "PASSWORD": "ZfxjP54cLIdz",
+        "HOST": "ep-silent-frost-a2griadk.eu-central-1.aws.neon.tech",
+        "PORT": 5432,
+        "OPTIONS": {
+            "sslmode": "require",
+        },
+    }
+}
 
-DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL"))}
+# DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL"))}
 
 
 # Password validation

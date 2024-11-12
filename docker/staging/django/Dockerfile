@@ -65,5 +65,5 @@ COPY --chown=django:django ./create_superuser.py /app/create_superuser.py
 
 USER django
 
-ENTRYPOINT ["/entrypoint"]
+# ENTRYPOINT ["/entrypoint"]
 CMD ["/start"]
