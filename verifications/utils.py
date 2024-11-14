@@ -1,21 +1,37 @@
 import requests
 from django.conf import settings
 
+from utils.custom_handlers import send_critical_email
 
-def get_payment_status(x_secret_key=None):
-    url = 'https://cvmsnigeria.com/api/v1/vehicle/search-history/'
+
+def get_payment_status(cert_num, x_secret_key=None):
+    url = "https://backend.afridev.com.ng/api/v1/vehicle/search-history/"
 
     headers = {
-        'x-secret-key': x_secret_key or settings.X_SECRET_KEY, 
+        "x-secret-key": x_secret_key,
     }
 
     try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()  # Raises an error for HTTP codes 
-        return response.json()  # Return JSON response if successful
+        response = requests.get(
+            f"{url}?cert_num={cert_num}", headers=headers, verify=False
+        )
+        response.raise_for_status()
+        return response.json()
     except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error occurred: {http_err}")
+        send_critical_email(
+            error=str(http_err),
+            description="HTTP error while verifying certificate payment status",
+            user_action="check payment status",
+            user_id=None,
+            error_code=response.status_code,
+        )
         return None
-    except Exception as err:
-        print(f"An error occurred: {err}")
+    except requests.exceptions.RequestException as req_err:
+        send_critical_email(
+            error=str(req_err),
+            description="Request exception while verifying certificate payment status",
+            user_action="check payment status",
+            user_id=None,
+            error_code=response.status_code,
+        )
         return None

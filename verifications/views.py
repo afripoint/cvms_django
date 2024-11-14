@@ -15,8 +15,17 @@ from rest_framework.permissions import IsAuthenticated
 from accounts.models import CustomUser
 from accounts.utils import send_html_email
 from admin_rosolutions.models import AdminResolutionLog
+from utils.custom_handlers import send_critical_email
 from verifications.models import Report, Verification
 from verifications.serializer import ReportSerializer, VerificationHistorySerializer
+
+import logging
+from django.conf import settings
+
+from verifications.utils import get_payment_status
+
+# Get the custom logger
+logger = logging.getLogger("django")
 
 
 class VerifyCertificateWithQRCodeAPIView(APIView):
@@ -132,71 +141,127 @@ class VerifyCertificateWithQRCodeAPIView(APIView):
                 {"error": "cert_num is required"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # external API URL and headers
-        api_url = "https://cvmsnigeria.com/api/v1/vehicle/search-history/"
-        headers = {"x-secret-key": "rbAZcgfSXQLiHHCzYk8pDU9svNpnoFNZ"}
+        response_data = get_payment_status(cert_num=cert_num, x_secret_key="rbAZcgfSXQLiHHCzYk8pDU9svNpnoFNZ")
 
-        # query the API with the uuid
-        try:
-            response = requests.get(
-                f"{api_url}?cert_num={cert_num}", headers=headers, verify=False
-            )
-
-            # check if thee uuid eexist and is marked as paid
-            if response.status_code == 200:
-                # convert to json
-                response_data = response.json()
-                data_list = response_data.get("data", [])
-
-                if not data_list:
-                    return Response(
-                        {"error": "Certificate not found"},
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
-
-                matching_certificate = data_list[0]
-
-                cert_instance = Verification.objects.create(
-                    cert_num=matching_certificate.get("cert_num"),
-                    user=user,
-                    vin=matching_certificate.get("vin"),
-                    uuid=matching_certificate.get("UUID"),
-                    name=f"{matching_certificate.get('user').get('firstname')} {matching_certificate.get('user').get('surname')}",
-                    email=matching_certificate.get("user_id"),
-                    make=matching_certificate.get("manufacturer"),
-                    year=matching_certificate.get("year"),
-                    is_duty_paid=matching_certificate.get("payment_status"),
-                )
-
-                # Log the certificate verification attempt
-                AdminResolutionLog.objects.create(
-                    user=user,
-                    content_type=ContentType.objects.get_for_model(Verification),
-                    object_id=cert_instance.uuid,
-                    action_type="view report",
-                    device=device,
-                    ip_address=ip_address,
-                )
-
-                response = {
-                    "message": "certificate fetch successfully",
-                    "data": data_list,
-                    "slug": cert_instance.slug,
-                }
-
-                return Response(
-                    data=response,
-                    status=status.HTTP_200_OK,
-                )
+        if response_data is None:
             return Response(
-                {"error": "data not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-        except requests.exceptions.RequestException as e:
-            # Handle any error in the external API call
-            return Response(
-                {"error": "Unable to connect to external API", "details": str(e)},
+                {"error": "Unable to connect to external API"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+        # Extract data if the certificate exists
+        data_list = response_data.get("data", [])
+        if not data_list:
+            return Response(
+                {"error": "Certificate not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        matching_certificate = data_list[0]
+
+        cert_instance = Verification.objects.create(
+            cert_num=matching_certificate.get("cert_num"),
+            user=user,
+            vin=matching_certificate.get("vin"),
+            uuid=matching_certificate.get("UUID"),
+            name=f"{matching_certificate.get('user').get('firstname')} {matching_certificate.get('user').get('surname')}",
+            email=matching_certificate.get("user_id"),
+            make=matching_certificate.get("manufacturer"),
+            year=matching_certificate.get("year"),
+            is_duty_paid=matching_certificate.get("payment_status"),
+        )
+
+        # Log the certificate verification attempt
+        AdminResolutionLog.objects.create(
+            user=user,
+            content_type=ContentType.objects.get_for_model(Verification),
+            object_id=cert_instance.uuid,
+            action_type="view report",
+            device=device,
+            ip_address=ip_address,
+        )
+
+        response = {
+            "message": "certificate fetch successfully",
+            "data": data_list,
+            "slug": cert_instance.slug,
+        }
+
+        return Response(
+            data=response,
+            status=status.HTTP_200_OK,
+        )
+
+        # Save the certificate verification details to the database
+
+        # query the API with the uuid
+        # try:
+        #     # response = requests.get(
+        #     #     f"{api_url}?cert_num={cert_num}", headers=headers, verify=False
+        #     # )
+
+        #     # check if thee uuid eexist and is marked as paid
+        #     if response.status_code == 200:
+        #         # convert to json
+        #         response_data = response.json()
+        #         data_list = response_data.get("data", [])
+
+        #         if not data_list:
+        #             return Response(
+        #                 {"error": "Certificate not found"},
+        #                 status=status.HTTP_404_NOT_FOUND,
+        #             )
+
+        #         matching_certificate = data_list[0]
+
+        #         cert_instance = Verification.objects.create(
+        #             cert_num=matching_certificate.get("cert_num"),
+        #             user=user,
+        #             vin=matching_certificate.get("vin"),
+        #             uuid=matching_certificate.get("UUID"),
+        #             name=f"{matching_certificate.get('user').get('firstname')} {matching_certificate.get('user').get('surname')}",
+        #             email=matching_certificate.get("user_id"),
+        #             make=matching_certificate.get("manufacturer"),
+        #             year=matching_certificate.get("year"),
+        #             is_duty_paid=matching_certificate.get("payment_status"),
+        #         )
+
+        #         # Log the certificate verification attempt
+        #         AdminResolutionLog.objects.create(
+        #             user=user,
+        #             content_type=ContentType.objects.get_for_model(Verification),
+        #             object_id=cert_instance.uuid,
+        #             action_type="view report",
+        #             device=device,
+        #             ip_address=ip_address,
+        #         )
+
+        #         response = {
+        #             "message": "certificate fetch successfully",
+        #             "data": data_list,
+        #             "slug": cert_instance.slug,
+        #         }
+
+        #         return Response(
+        #             data=response,
+        #             status=status.HTTP_200_OK,
+        #         )
+        #     return Response(
+        #         {"error": "data not found"}, status=status.HTTP_404_NOT_FOUND
+        #     )
+        # except requests.exceptions.RequestException as e:
+        #     send_critical_email(
+        #         error=str(e),
+        #         description=str(e),
+        #         user_action="unable to connect to external API",
+        #         user_id= None,
+        #         error_code=500,
+        #     )
+        #     # Handle any error in the external API call
+        #     return Response(
+        #         {"error": "Unable to connect to external API", "details": str(e)},
+        #         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        #     )
 
 
 class CreateReportAPIView(APIView):
