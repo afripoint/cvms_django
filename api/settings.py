@@ -4,6 +4,8 @@ from datetime import timedelta
 import dj_database_url
 import os
 
+
+
 import environ
 
 env = environ.Env()
@@ -214,8 +216,11 @@ SIMPLE_JWT = {
 }
 
 # Admin email
+# ADMINS = [
+#     ("Admin", "cvmsproject@afripointgroup.com"),
+# ]
 ADMINS = [
-    ("Super Administrator", "super_admin@cvms.com"),
+    ("Admin", "d.akagha20@gmail.com"),
 ]
 
 

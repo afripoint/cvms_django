@@ -1,27 +1,14 @@
 from rest_framework import serializers
-from .models import Product
 
 
+class ProductCreateSerializer(serializers.Serializer):
+    product_id = serializers.CharField(max_length=255)
+    product_name = serializers.CharField(max_length=255)
+    description = serializers.CharField()
+    price = serializers.FloatField()
+    active = serializers.BooleanField()
+    downloadable = serializers.BooleanField()
+    duration = serializers.IntegerField()
+class ProductUpdateSerializer(serializers.Serializer):
+    active = serializers.BooleanField()
 
-class ProductSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Product
-        fields = (
-            "product_name",
-            "product_description",
-            "product_price",
-            "is_removed",
-            "created_at",
-            "created_at",
-        )
-        read_only_fields = (
-            "created_at",
-            "created_at",
-            "is_removed",
-        )
-
-
-class ProductRemoveSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Product
-        fields = ("is_removed",)
