@@ -224,15 +224,6 @@ ADMINS = [
 ]
 
 
-# STORAGES = {
-#     "default": {
-#         "BACKEND": "django.core.files.storage.FileSystemStorage",
-#     },
-#     "staticfiles": {
-#         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
-#     },
-# }
-
 # JAZZMIN_SETTINGS = {
 #     "site_title": "CVMS dashboard",
 #     "site_header": "CVMS",
@@ -254,7 +245,6 @@ ADMINS = [
 #     "hide_apps": [],
 #     # Hide these models when generating side menu (e.g auth.user)
 #     "hide_models": [],
-#     #################
 #     # Related Modal #
 #     #################
 #     # Use modals instead of popups
