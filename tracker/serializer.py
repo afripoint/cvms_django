@@ -4,6 +4,7 @@ from .models import Consignment
 
 class ConsignmentSeriliazer(serializers.ModelSerializer):
     importer_phone = serializers.CharField(max_length=50, min_length=2, required=True)
+
     class Meta:
         model = Consignment
         fields = (
@@ -20,6 +21,8 @@ class ConsignmentSeriliazer(serializers.ModelSerializer):
             "quantity",
             "eta",
             "vessel_voyage",
+            "charges",
+            "container_id",
             "hs_code",
             "port_of_landing",
             "port_of_loading",
