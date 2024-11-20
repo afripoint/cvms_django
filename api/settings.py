@@ -12,23 +12,14 @@ env = environ.Env()
 
 environ.Env.read_env()
 
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-f*$dp9#im)nkbux#8lml8j#wn^1jvtxu6tb6%&k47f+inid09-"
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
-
-# Application definition
+ALLOWED_HOSTS = ["admin.afridev.com.ng"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -61,7 +52,7 @@ INSTALLED_APPS = [
 
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://admin.kineticafricapp.com",
+    "https://admin.afridev.com.ng",
     # add other domains as needed
 ]
 
@@ -116,14 +107,18 @@ WSGI_APPLICATION = "api.wsgi.application"
 #     }
 # }
 
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "cvmsdjangoadmindevdb2",
-        "USER": "cvmsdevdbuser",
-        "PASSWORD": "ZfxjP54cLIdz54cLIdz",
-        "HOST": "161.97.86.134",
+        "NAME": "cvmsdjangoadmindb",
+        "USER": "afriauthdb_owner",
+        "PASSWORD": "ZfxjP54cLIdz",
+        "HOST": "ep-silent-frost-a2griadk.eu-central-1.aws.neon.tech",
         "PORT": 5432,
+        "OPTIONS": {
+            "sslmode": "require",
+        },
     }
 }
 
@@ -164,9 +159,6 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
@@ -175,17 +167,11 @@ STATICFILES_DIRS = [
 ]
 
 MEDIA_URL = "/media/"
-
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-
 AUTH_USER_MODEL = "accounts.CustomUser"
-
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 
