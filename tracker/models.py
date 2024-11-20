@@ -21,6 +21,8 @@ class Consignment(models.Model):
     vessel_voyage = models.CharField(max_length=150, blank=True, null=True)
     quantity = models.CharField(max_length=50, blank=True, null=True)
     slug = models.CharField(max_length=250, blank=True, null=True)
+    charges = models.CharField(max_length=50, blank=True, null=True)
+    container_id = models.CharField(max_length=50, blank=True, null=True)
     hs_code = models.CharField(max_length=250, blank=True, null=True)
     port_of_loading = models.CharField(max_length=150, blank=True, null=True)
     port_of_landing = models.CharField(max_length=150, blank=True, null=True)
