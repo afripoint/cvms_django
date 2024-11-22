@@ -26,6 +26,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["admin.cvmsnigeria.com"]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://admin.cvmsnigeria.com",
+]
+
 # Application definition
 
 INSTALLED_APPS = [
