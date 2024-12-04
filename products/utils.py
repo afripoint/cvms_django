@@ -110,8 +110,10 @@ def list_product_external_api():
 
     try:
         response = requests.get(url, headers=headers)
-        response.raise_for_status()  
-        return response.json(), response.status_code
+        response.raise_for_status()
+
+        return response.json()
+
     except requests.exceptions.RequestException as e:
         send_critical_email(
             error=str(e),
