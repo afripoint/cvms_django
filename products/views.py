@@ -1,5 +1,4 @@
-from django.shortcuts import render
-from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import APIException
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.response import Response
 from rest_framework import status
@@ -12,9 +11,30 @@ from drf_yasg import openapi
 
 from products.utils import (
     create_product_in_external,
+    list_product_external_api,
     remove_product_in_external,
     update_product_in_external,
 )
+
+
+class ProductListAPIView(APIView):
+    @swagger_auto_schema(
+        operation_summary="list products",
+        operation_description="Allows admin view list of product",
+    )
+    def get(self, request, *args, **kwargs):
+
+        try:
+            products = list_product_external_api()
+            return Response(products, status=status.HTTP_200_OK)
+        except APIException as e:
+            return Response(e.detail, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception as e:
+            error_message = {
+                "error": "An unexpected error occurred.",
+                "details": str(e),
+            }
+            return Response(error_message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ProductCreationAPIView(APIView):
@@ -124,7 +144,6 @@ class ProductStatusAPIView(APIView):
             return Response(external_response, status=external_status)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 # remove/delete product

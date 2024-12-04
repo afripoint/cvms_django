@@ -3,7 +3,7 @@ import requests
 from utils.custom_handlers import send_critical_email
 
 
-
+EXTERNAL_API_URL_LIST = "https://backend.afridev.com.ng/api/v1/product/products"
 EXTERNAL_API_URL = "https://backend.afridev.com.ng/api/v1/product/product/create"
 EXTERNAL_UPDATE_API_URL = "https://backend.afridev.com.ng/api/v1/product/product/update"
 EXTERNAL_DELETE_API_URL = "https://backend.afridev.com.ng/api/v1/product/product/delete"
@@ -93,6 +93,29 @@ def change_status_product_in_external(product_id):
         send_critical_email(
             error=str(e),
             description=f"Failed to connect to external API to change status with product_id {product_id}",
+            error_code=getattr(e.response, 'status_code', None),
+            user_action="Check external API availability and connection settings",
+            user_id=None
+        )
+        return {"error": str(e)}, 503
+    
+# get_product_products
+def list_product_external_api():
+    headers = {
+        'x-secret-key': SECRET_KEY,
+        'Content-Type': 'application/json'
+    }
+
+    url = EXTERNAL_API_URL_LIST
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  
+        return response.json(), response.status_code
+    except requests.exceptions.RequestException as e:
+        send_critical_email(
+            error=str(e),
+            description=f"Failed to connect to external API to list product",
             error_code=getattr(e.response, 'status_code', None),
             user_action="Check external API availability and connection settings",
             user_id=None
