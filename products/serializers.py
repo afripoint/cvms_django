@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
 
+
+
 class ProductCreateSerializer(serializers.Serializer):
     product_id = serializers.CharField(max_length=255, read_only=True)
     product_name = serializers.CharField(max_length=255)

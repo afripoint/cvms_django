@@ -20,6 +20,7 @@ SECRET_KEY = "django-insecure-f*$dp9#im)nkbux#8lml8j#wn^1jvtxu6tb6%&k47f+inid09-
 DEBUG = True
 
 ALLOWED_HOSTS = ["admin.afridev.com.ng"]
+# ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -202,11 +203,8 @@ SIMPLE_JWT = {
 }
 
 # Admin email
-# ADMINS = [
-#     ("Admin", "cvmsproject@afripointgroup.com"),
-# ]
 ADMINS = [
-    ("Admin", "d.akagha20@gmail.com"),
+    ("Admin", "cvmsproject@afripointgroup.com"),
 ]
 
 
