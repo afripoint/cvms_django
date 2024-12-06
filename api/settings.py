@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "admin_rosolutions",
     "admin_analytics",
     "tracker",
+    "plans",
     # third party packages
     "drf_yasg",
     "rest_framework",
