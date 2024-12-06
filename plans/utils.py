@@ -17,7 +17,7 @@ def retrieve_wallet_plans():
     try:
         response = requests.get(WALLET_PLANS_API, headers=headers)
         response.raise_for_status()  
-        return response.json(), response.status_code
+        return response.json()
     except requests.exceptions.RequestException as e:
         send_critical_email(
             error=str(e),
@@ -38,8 +38,8 @@ def retrieve_wallet_subscription(params):
 
     try:
         response = requests.get(url, headers=headers)
-        response.raise_for_status()  
-        return response.json(), response.status_code
+        response.raise_for_status()
+        return response.json()
     except requests.exceptions.RequestException as e:
         send_critical_email(
             error=str(e),
